@@ -1,0 +1,3 @@
+- insert:
+    - id: xindong-client-canvas
+      name: '@xindong/dsh-client-canvas'
