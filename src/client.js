@@ -20,7 +20,7 @@ window.__ModuleLoader__.load({
       if (ctx.locale && ctx.locale.register) {
         ctx.effect(function() { return ctx.locale.register(NS, { zh: zh, en: en }); }, 'xindong-client-canvas: locale');
       }
-      var t = ctx.locale ? ctx.locale.bind(NS) : function(k) { return k === 'view.canvas' ? 'Canvas' : k; };
+      var t = ctx.locale ? ctx.locale.bind(NS) : function(k) { return k === 'view.canvas' ? '画布' : k; };
 
       ctx.slots.inject('conversation.view', function() {
         return ctx.slots.register(
@@ -68,6 +68,7 @@ window.__ModuleLoader__.load({
           });
       }, [sessionId]);
 
+      // Poll for remote updates from Agent
       useEffect(function() {
         fetchDoc();
         var timer = setInterval(function() {
@@ -82,26 +83,34 @@ window.__ModuleLoader__.load({
                   syncingRef.current = true;
                   boardRef.current.document.load(data.document).finally(function() {
                     syncingRef.current = false;
+                    if (appRef.current && appRef.current.render) {
+                      appRef.current.render();
+                    }
                   });
                 }
               }
             })
             .catch(function() {});
-        }, 1500);
+        }, 1200);
         return function() { clearInterval(timer); };
       }, [sessionId, fetchDoc]);
 
+      // Initialize PixiBoard & Pixi Application
       useEffect(function() {
         var destroyed = false;
         var instance = null;
+        var app = null;
 
         if (!containerRef.current) return;
+        var containerEl = containerRef.current;
 
         import('/xindong-canvas/pixiboard.js')
           .then(function(mod) {
             if (destroyed) return;
             var createPixiBoard = mod.createPixiBoard;
             var PixiBoardRenderer = mod.PixiBoardRenderer;
+            var createPixiApplicationFactory = mod.createPixiApplicationFactory;
+            var PIXI = mod.PIXI;
 
             var initialDoc = doc || {
               schemaVersion: 1,
@@ -111,30 +120,35 @@ window.__ModuleLoader__.load({
               viewport: { scale: 1, offset: { x: 0, y: 0 } }
             };
 
-            var application = null;
+            var appFactory = createPixiApplicationFactory({
+              resizeTo: containerEl,
+              antialias: true,
+              backgroundAlpha: 0,
+              autoStart: false,
+              sharedTicker: false
+            });
+
             return createPixiBoard({
-              container: containerRef.current,
+              container: containerEl,
               document: initialDoc,
               interactions: { pointer: true, keyboard: true },
               rendererFactory: function(options) {
-                return new PixiBoardRenderer(Object.assign({}, options, {
+                var renderer = new PixiBoardRenderer(Object.assign({}, options, {
                   applicationFactory: function() {
-                    return import('pixi.js').then(function(pixi) {
-                      var app = new pixi.Application();
-                      return Promise.resolve(app.init({
-                        resizeTo: containerRef.current,
-                        antialias: true,
-                        backgroundAlpha: 0,
-                        autoStart: false,
-                        sharedTicker: false
-                      })).then(function() {
-                        application = app;
-                        appRef.current = app;
-                        return app;
-                      });
+                    return appFactory().then(function(createdApp) {
+                      app = createdApp;
+                      appRef.current = createdApp;
+                      return createdApp;
                     });
                   }
                 }));
+
+                // Register rich custom shape renderers if PIXI is available
+                if (PIXI && renderer.registry) {
+                  registerCustomRenderers(renderer.registry, PIXI);
+                }
+
+                return renderer;
               }
             }).then(function(board) {
               return board.ready.then(function() {
@@ -145,15 +159,41 @@ window.__ModuleLoader__.load({
                 instance = board;
                 boardRef.current = board;
 
-                if (application && application.canvas && containerRef.current) {
-                  application.canvas.style.position = 'absolute';
-                  application.canvas.style.top = '0';
-                  application.canvas.style.left = '0';
-                  application.canvas.style.width = '100%';
-                  application.canvas.style.height = '100%';
-                  containerRef.current.appendChild(application.canvas);
+                // Mount Pixi canvas
+                if (app && app.canvas && containerEl) {
+                  app.canvas.style.position = 'absolute';
+                  app.canvas.style.top = '0';
+                  app.canvas.style.left = '0';
+                  app.canvas.style.width = '100%';
+                  app.canvas.style.height = '100%';
+                  app.canvas.style.display = 'block';
+                  app.canvas.style.outline = 'none';
+                  containerEl.appendChild(app.canvas);
                 }
 
+                // Wire stage transform with board viewport
+                var syncStage = function() {
+                  if (!app || !app.stage) return;
+                  var vp = board.viewport.get();
+                  app.stage.scale.set(vp.scale, vp.scale);
+                  app.stage.position.set(vp.offset.x, vp.offset.y);
+                  if (app.render) app.render();
+                };
+
+                board.on('viewport:change', syncStage);
+                syncStage();
+
+                // Initial render after small delay to ensure DOM dimensions
+                setTimeout(function() {
+                  if (destroyed) return;
+                  syncStage();
+                  fitBoard(board);
+                }, 100);
+
+                // Wire pan & zoom interactions on container
+                setupCanvasInteractions(containerEl, board, syncStage);
+
+                // Listen for local changes to sync back to Host
                 board.on('change', function(e) {
                   if (syncingRef.current) return;
                   if (e.changeSet && e.changeSet.origin === 'load') return;
@@ -188,12 +228,38 @@ window.__ModuleLoader__.load({
           destroyed = true;
           if (instance) instance.destroy();
           boardRef.current = null;
+          appRef.current = null;
+          if (app && app.canvas && app.canvas.parentNode) {
+            app.canvas.parentNode.removeChild(app.canvas);
+          }
         };
       }, [sessionId]);
 
+      function fitBoard(board) {
+        if (!board) return;
+        var currentDoc = board.document.toJSON();
+        if (currentDoc && currentDoc.nodes && currentDoc.nodes.length > 0) {
+          var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          for (var i = 0; i < currentDoc.nodes.length; i++) {
+            var n = currentDoc.nodes[i];
+            minX = Math.min(minX, n.x);
+            minY = Math.min(minY, n.y);
+            maxX = Math.max(maxX, n.x + (n.width || 120));
+            maxY = Math.max(maxY, n.y + (n.height || 80));
+          }
+          var pad = 60;
+          board.viewport.fitBounds({
+            minX: minX - pad,
+            minY: minY - pad,
+            maxX: maxX + pad,
+            maxY: maxY + pad
+          });
+        }
+      }
+
       var addRect = function() {
-        var cx = 100 + Math.random() * 200;
-        var cy = 100 + Math.random() * 200;
+        var cx = 150 + Math.random() * 200;
+        var cy = 150 + Math.random() * 200;
         fetch('/xindong-canvas/boards/' + encodeURIComponent(sessionId) + '/write', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -221,6 +287,7 @@ window.__ModuleLoader__.load({
               syncingRef.current = true;
               boardRef.current.document.load(data.document).finally(function() {
                 syncingRef.current = false;
+                if (appRef.current && appRef.current.render) appRef.current.render();
               });
             }
           })
@@ -228,8 +295,8 @@ window.__ModuleLoader__.load({
       };
 
       var addText = function() {
-        var cx = 120 + Math.random() * 200;
-        var cy = 120 + Math.random() * 200;
+        var cx = 180 + Math.random() * 200;
+        var cy = 180 + Math.random() * 200;
         fetch('/xindong-canvas/boards/' + encodeURIComponent(sessionId) + '/write', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -241,9 +308,9 @@ window.__ModuleLoader__.load({
                 type: 'text',
                 x: cx,
                 y: cy,
-                width: 200,
+                width: 220,
                 height: 40,
-                props: { text: 'New Canvas Note', style: { fill: 0xffffff, fontSize: 16 } }
+                props: { text: 'New Canvas Note 📝', style: { fill: 0xffffff, fontSize: 16 } }
               }]
             }]
           })
@@ -257,6 +324,7 @@ window.__ModuleLoader__.load({
               syncingRef.current = true;
               boardRef.current.document.load(data.document).finally(function() {
                 syncingRef.current = false;
+                if (appRef.current && appRef.current.render) appRef.current.render();
               });
             }
           })
@@ -264,16 +332,9 @@ window.__ModuleLoader__.load({
       };
 
       var fitAll = function() {
-        if (boardRef.current && doc && doc.nodes && doc.nodes.length > 0) {
-          var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-          for (var i = 0; i < doc.nodes.length; i++) {
-            var n = doc.nodes[i];
-            minX = Math.min(minX, n.x);
-            minY = Math.min(minY, n.y);
-            maxX = Math.max(maxX, n.x + n.width);
-            maxY = Math.max(maxY, n.y + n.height);
-          }
-          boardRef.current.viewport.fitBounds({ minX: minX, minY: minY, maxX: maxX, maxY: maxY }, { padding: 40 });
+        if (boardRef.current) {
+          fitBoard(boardRef.current);
+          if (appRef.current && appRef.current.render) appRef.current.render();
         }
       };
 
@@ -286,7 +347,7 @@ window.__ModuleLoader__.load({
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            backgroundColor: '#0f172a',
+            backgroundColor: '#090d16',
             color: '#e2e8f0',
             overflow: 'hidden',
             fontFamily: 'system-ui, -apple-system, sans-serif'
@@ -301,55 +362,70 @@ window.__ModuleLoader__.load({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '0 12px',
-              backgroundColor: 'rgba(15, 23, 42, 0.8)',
+              padding: '0 16px',
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
               backdropFilter: 'blur(8px)',
-              zIndex: 10
+              zIndex: 10,
+              userSelect: 'none'
             }
           },
           React.createElement(
             'div',
-            { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
+            { style: { display: 'flex', alignItems: 'center', gap: '10px' } },
             React.createElement('span', { style: { fontWeight: 600, fontSize: '13px', color: '#38bdf8' } }, 'PixiBoard Canvas'),
-            React.createElement('span', { style: { fontSize: '11px', color: '#64748b' } }, 'r' + (doc ? doc.revision : 0) + ' | ' + (doc && doc.nodes ? doc.nodes.length : 0) + ' nodes')
+            React.createElement('span', {
+              style: {
+                fontSize: '11px',
+                color: '#94a3b8',
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                padding: '2px 8px',
+                borderRadius: '12px'
+              }
+            }, 'r' + (doc ? doc.revision : 0) + ' | ' + (doc && doc.nodes ? doc.nodes.length : 0) + ' nodes')
           ),
           React.createElement(
             'div',
-            { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
+            { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
             React.createElement('button', {
               onClick: addRect,
               style: {
                 background: '#1e293b',
-                border: '1px solid rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.12)',
                 color: '#f8fafc',
-                padding: '4px 10px',
-                borderRadius: '4px',
+                padding: '4px 12px',
+                borderRadius: '6px',
                 fontSize: '12px',
-                cursor: 'pointer'
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 0.15s'
               }
             }, '+ 矩形'),
             React.createElement('button', {
               onClick: addText,
               style: {
                 background: '#1e293b',
-                border: '1px solid rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.12)',
                 color: '#f8fafc',
-                padding: '4px 10px',
-                borderRadius: '4px',
+                padding: '4px 12px',
+                borderRadius: '6px',
                 fontSize: '12px',
-                cursor: 'pointer'
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 0.15s'
               }
             }, '+ 文本'),
             React.createElement('button', {
               onClick: fitAll,
               style: {
-                background: '#1e293b',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: '#f8fafc',
-                padding: '4px 10px',
-                borderRadius: '4px',
+                background: '#0284c7',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: '#ffffff',
+                padding: '4px 12px',
+                borderRadius: '6px',
                 fontSize: '12px',
-                cursor: 'pointer'
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 0.15s'
               }
             }, '适应画布')
           )
@@ -358,16 +434,133 @@ window.__ModuleLoader__.load({
           'div',
           {
             ref: containerRef,
+            tabIndex: 0,
             style: {
               flex: 1,
               position: 'relative',
               width: '100%',
               height: '100%',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              cursor: 'grab',
+              outline: 'none',
+              backgroundImage: 'radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)',
+              backgroundSize: '24px 24px'
             }
           }
         )
       );
+    }
+
+    // Register rich custom shape renderers for shapes created by Agent
+    function registerCustomRenderers(registry, PIXI) {
+      function applyCommonTransform(view, node) {
+        var d = view.displayObject;
+        d.x = node.x;
+        d.y = node.y;
+        d.rotation = node.rotation || 0;
+        d.zIndex = node.zIndex || 0;
+      }
+
+      // Ellipse / Circle
+      registry.register('ellipse', {
+        create: function(node) {
+          var g = new PIXI.Graphics();
+          var w = node.width || 100;
+          var h = node.height || 100;
+          var fill = (node.props && node.props.fill) !== undefined ? node.props.fill : 0x3b82f6;
+          g.ellipse(w / 2, h / 2, w / 2, h / 2).fill(fill);
+          return { displayObject: g, state: {} };
+        },
+        update: function(view, node) {
+          applyCommonTransform(view, node);
+        },
+        destroy: function(view) {
+          view.displayObject.destroy({ children: true });
+        }
+      });
+
+      registry.register('circle', {
+        create: function(node) {
+          var g = new PIXI.Graphics();
+          var r = (node.width || 100) / 2;
+          var fill = (node.props && node.props.fill) !== undefined ? node.props.fill : 0x3b82f6;
+          g.circle(r, r, r).fill(fill);
+          return { displayObject: g, state: {} };
+        },
+        update: function(view, node) {
+          applyCommonTransform(view, node);
+        },
+        destroy: function(view) {
+          view.displayObject.destroy({ children: true });
+        }
+      });
+
+      // Star shape
+      registry.register('star', {
+        create: function(node) {
+          var g = new PIXI.Graphics();
+          var w = node.width || 100;
+          var h = node.height || 100;
+          var r = Math.min(w, h) / 2;
+          var fill = (node.props && node.props.fill) !== undefined ? node.props.fill : 0xeab308;
+          g.star(r, r, 5, r, r * 0.45).fill(fill);
+          return { displayObject: g, state: {} };
+        },
+        update: function(view, node) {
+          applyCommonTransform(view, node);
+        },
+        destroy: function(view) {
+          view.displayObject.destroy({ children: true });
+        }
+      });
+    }
+
+    // Pan & Zoom gestures on canvas
+    function setupCanvasInteractions(container, board, syncStage) {
+      var isDragging = false;
+      var lastPos = { x: 0, y: 0 };
+
+      container.addEventListener('pointerdown', function(e) {
+        if (e.button === 0 || e.button === 1) {
+          isDragging = true;
+          lastPos = { x: e.clientX, y: e.clientY };
+          container.style.cursor = 'grabbing';
+          container.setPointerCapture(e.pointerId);
+        }
+      });
+
+      container.addEventListener('pointermove', function(e) {
+        if (!isDragging) return;
+        var dx = e.clientX - lastPos.x;
+        var dy = e.clientY - lastPos.y;
+        lastPos = { x: e.clientX, y: e.clientY };
+        board.viewport.panBy(dx, dy);
+        syncStage();
+      });
+
+      var endDrag = function(e) {
+        if (isDragging) {
+          isDragging = false;
+          container.style.cursor = 'grab';
+          try { container.releasePointerCapture(e.pointerId); } catch(err) {}
+        }
+      };
+
+      container.addEventListener('pointerup', endDrag);
+      container.addEventListener('pointercancel', endDrag);
+
+      container.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        var rect = container.getBoundingClientRect();
+        var screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        if (e.ctrlKey || e.metaKey) {
+          var factor = Math.exp(-e.deltaY * 0.01);
+          board.viewport.zoomAt(screenPoint, factor);
+        } else {
+          board.viewport.panBy(-e.deltaX, -e.deltaY);
+        }
+        syncStage();
+      }, { passive: false });
     }
 
     return module.exports;
