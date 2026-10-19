@@ -1,3 +1,6 @@
 node_modules/
 *.tgz
 .DS_Store
+
+# Retired local SDK override; never publish machine-specific paths.
+.local-sdk.json

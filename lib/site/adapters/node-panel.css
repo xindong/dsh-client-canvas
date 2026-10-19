@@ -1,0 +1,48 @@
+/* Labels belong only to the node actions, keeping playback controls compact. */
+.selection-actions .sp-button.dsh-node-action-labeled {
+  width: auto;
+  gap: 5px;
+  padding: 0 7px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.selection-actions .sp-button.dsh-node-action-labeled svg {
+  flex: none;
+}
+
+/* SDK owns projection, pooling and wheel forwarding for the node editor. */
+.dsh-node-agent-overlay { position: absolute; inset: 0; z-index: 12; pointer-events: none; }
+.dsh-node-agent-item { pointer-events: auto; }
+.selection-actions.xindong-node-agent {
+  box-sizing: border-box;
+  width: min(320px, calc(100vw - 24px));
+  min-height: 0;
+  transform: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px;
+  font: 13px/1.5 system-ui, -apple-system, sans-serif;
+}
+.xindong-node-agent-input {
+  box-sizing: border-box; width: 100%; height: 52px; min-height: 52px;
+  padding: 2px; border: 0; outline: none; resize: none;
+  background: transparent; color: #172033; font: inherit; line-height: 22px;
+  caret-color: #4f7cff;
+}
+.xindong-node-agent-input::placeholder { color: #778195; }
+.xindong-node-agent-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.selection-actions .xindong-node-agent-preview { width: auto; padding: 0 7px; font-size: 12px; }
+.selection-actions .xindong-node-agent-send { width: 28px; height: 28px; }
+.selection-actions .xindong-node-agent-send:not(:disabled) { background: #edf2ff; color: #3565d4; }
+.selection-actions .xindong-node-agent-send:hover:not(:disabled) { background: #e0e9ff; }
+.xindong-node-agent .sp-button:focus-visible { outline: 2px solid #4f7cff; outline-offset: 2px; }
+.xindong-node-agent-error { color: #b84035; font-size: 12px; line-height: 18px; overflow-wrap: anywhere; }
+.xindong-node-agent-prompt-preview { max-width: 100%; font-size: 11px; color: #69758b; }
+.xindong-node-agent-prompt-preview summary { cursor: pointer; padding: 4px 0; }
+.xindong-node-agent-prompt-preview pre { max-height: 180px; margin: 0; padding: 8px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 6px; background: #f4f6fa; font: 11px/1.6 ui-monospace, monospace; }
+/* The canvas list has no trailing divider; an empty list takes no space. */
+.project-menu .project-list{border-bottom:0}
+.project-menu .project-list:not(:has(> *)){display:none}
+.project-menu:has(.project-list:not(:has(> *))) .project-actions-top{padding-bottom:0}
