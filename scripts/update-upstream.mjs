@@ -105,6 +105,12 @@ try {
     const bytes = Buffer.from(await tarResponse.arrayBuffer())
     const integrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`
     if (metadata.dist.integrity !== integrity) throw new Error(`Integrity mismatch: ${name}`)
+    if (name === 'three') {
+      const installed = JSON.parse(await readFile(join(root, 'node_modules/three/package.json'), 'utf8')).version
+      if (installed !== version) throw new Error(`Installed three@${installed} does not match upstream ${version}`)
+      artifacts[name] = { version, integrity }
+      continue
+    }
     const extracted = join(temp, 'extracted', name)
     const target = join(site, 'deps', name)
     await mkdir(extracted, { recursive: true })
@@ -140,12 +146,6 @@ try {
       for (const icon of names) {
         const slug = icon.replace(/([a-z\d])([A-Z])/g, '$1-$2').replace(/([a-zA-Z])(\d+)/g, '$1-$2').toLowerCase()
         await copyModule(`dist/esm/icons/${slug}.mjs`)
-      }
-    } else {
-      await copyModule('build/three.module.js')
-      const sources = main + '\n' + await readFile(join(staging, 'apps/site/src/modelPreviewScene.ts'), 'utf8')
-      for (const [, path] of sources.matchAll(/["']three\/examples\/jsm\/([^"']+)["']/g)) {
-        await copyModule(`examples/jsm/${path}`)
       }
     }
     artifacts[name] = { version, integrity }

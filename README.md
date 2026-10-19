@@ -51,14 +51,14 @@ Agent 通过 Core 提供的 `canvas_read` 和 `canvas_write` 读写**同一份**
 
 预览任务按类型有界调度，缓存源内容与规格对应的独立预览版本；首次缩略图长边默认 384px，选中时可请求更清晰的 detail（最长边 1024px），显式「重置预览」也请求 detail。后台结果通过 SSE 更新对应卡片，轮询用于断线恢复，不移动视口。拖动、缩放与网页刷新不会重新处理已有预览；失败保留原文件及已有图片，可从右键菜单重试。HTML 布局视口与画布节点尺寸分离，重置预览会保留布局宽度并按节点比例调整截图高度；PDF/Office 默认首页，长文档只显示有界的开头区域。
 
-HTML 相对资源从同画布已导入资产的文件名或相对路径解析；单独导入 HTML 时缺失的资源不会自动补齐，补充资源后可刷新预览。HTML 文件夹/资源包 ZIP 的递归导入尚未接入，模型 ZIP 则单独识别。Office 排版受转换引擎和字体影响。预览依赖及 Chromium 在首次需要时安装；开发环境也可运行 `node scripts/setup-preview-runtime.mjs` 预先准备。预览性能与执行通道详见 [预览说明](docs/preview-performance.md)。
+HTML 相对资源从同画布已导入资产的文件名或相对路径解析；单独导入 HTML 时缺失的资源不会自动补齐，补充资源后可刷新预览。HTML 文件夹/资源包 ZIP 的递归导入尚未接入，模型 ZIP 则单独识别。Office 排版受转换引擎和字体影响。插件依赖随安装提供；首次需要浏览器渲染时若缺少 Chromium，会自动安装（最多等待 5 分钟），安装失败可在插件目录运行 `node scripts/setup-preview-runtime.mjs` 手动准备后重试。预览性能与执行通道详见 [预览说明](docs/preview-performance.md)。
 
 ## 架构与安全边界
 
 - `@xindong/dsh-canvas` 负责文档、资源、revision 和 Agent 工具；本插件负责 DSH `conversation.view` Tab、HTTP 桥接、预览任务与官方 site 的 DSH 适配。上游 site 保留画布交互和通用预览 UI，不另造画布实现。
 - site 在同源 iframe 中运行，以隔离 CSS、DOM 和快捷键；**iframe 不是不可信代码的安全边界**。HTTP project/media adapter 将 site 的存储接回 Core，而不是使用浏览器 IndexedDB/OPFS 保存第二份画布。
-- site 源码快照位于 `lib/site/upstream/`，相关浏览器依赖位于 `lib/site/deps/`，锁定信息见 `lib/site/upstream.json`。`lib/site-server.js` 在请求时对上游 TypeScript 做 Node 类型擦除并提供 ESM；SDK 浏览器运行时的 `pixiboardjs/browser`、`@pixi-board/core`、`@pixi-board/renderer-pixi` 和 `@pixi-board/adapter-browser` 全部通过 import map 指向**同一个**已发布 npm 浏览器 bundle `sdk/browser.js`，不加载本机 SDK 源码或另外编译一份 SDK。
-- 预览请求在本地服务端处理。HTML 渲染页不带 DSH 登录 Cookie，禁止访问 `file:` 和内网/回环 API；不要把外部文件内容当作可信指令。URL 导入仅允许公网 HTTP(S)，不跟随重定向。保护完整登录链接、会话凭据和画布数据，报告问题时先去除敏感信息。
+- site 源码快照位于 `lib/site/upstream/`，Pixi 和图标浏览器模块位于 `lib/site/deps/`；Three.js 由锁定版本的 npm 包在本机提供，锁定信息见 `lib/site/upstream.json`。`lib/site-server.js` 在请求时对上游 TypeScript 做 Node 类型擦除并提供 ESM；SDK 浏览器运行时的 `pixiboardjs/browser`、`@pixi-board/core`、`@pixi-board/renderer-pixi` 和 `@pixi-board/adapter-browser` 全部通过 import map 指向**同一个**已发布 npm 浏览器 bundle `sdk/browser.js`，不加载本机 SDK 源码或另外编译一份 SDK。
+- 预览请求在本地服务端处理。HTML 渲染页不带 DSH 登录 Cookie，禁止访问 `file:` 和内网/回环 API；“打开原始文件”使用带 CSP 沙箱的资产响应，而不是同源 Blob 页面。不要把外部文件内容当作可信指令。URL 导入仅允许公网 HTTP(S)，不跟随重定向。保护完整登录链接、会话凭据和画布数据，报告问题时先去除敏感信息。
 
 ## 上游更新与开发
 
