@@ -1,0 +1,26 @@
+{
+  "repository": "xindong/pixiboardSDK",
+  "revision": "4a22b10b4d902afc351b710da0002e0ed8117740",
+  "version": "0.1.0-alpha.5",
+  "dependencies": {
+    "pixi.js": {
+      "version": "8.19.0",
+      "integrity": "sha512-pq1O6emA/GFjjeF+8d3Pb5t7knD8FsnfWGqQcRjYjsqFZ7QdzG1XgjLDUu0DFJRbafjV5+g8iNLFBx0b9649lg=="
+    },
+    "lucide": {
+      "version": "1.33.0",
+      "integrity": "sha512-qfSZR1mmM65zfGeqonve67gtHBmyJtvlpdMuXiQLN04RaQmEvD0o85S9Gi+A6JQaQXpjKz5FIUBdAUEhb1Lj1Q=="
+    },
+    "three": {
+      "version": "0.185.1",
+      "integrity": "sha512-5aojFCXKwnjBRZvUnt3WFfEcvUJgkN5LlijRFN95hMy8WVkG4I0QNcJE+OuWvuJ0bOdStrbfXn0pkd6/QyiAlg=="
+    }
+  },
+  "sourceHashes": {
+    "index.html": "8af813e75592db9c0819e7d3968edad4ef4d940d6bb84e722d0d1d47487b4703",
+    "src/main.ts": "95189aae8249878a6c2f33857d9a044f9c484b793c5d213116ebcb9035a70d97",
+    "src/styles.css": "f766a383db3d8d8aded56a66f4c91058b947a9721e22e4b38e85ab48e8d2fc21",
+    "src/media.ts": "ab3397cdc10893dba5e50fa3aa6ab58aad36a6204a651d84c56d65031211137c",
+    "src/preview.ts": "067e88fe11fab675b9aaeec4dbc0cc27c3a54c219d9ec0f6f2c8a2b243d3a430"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "repository": "deepseek-ai/deepseek-harness",
+  "version": "0.2.0-rc.2",
+  "source": "Installed @deepseek-ai/dsh and package API contracts in ~/.dsh/profiles/node_modules"
+}

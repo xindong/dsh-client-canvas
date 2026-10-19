@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PixiBoard</title>
+    <meta
+      name="description"
+      content="PixiBoardJS：面向大型媒体与 AI 工作流的高性能无限画布 SDK。扁平数据模型、PixiJS 渲染、自定义节点、Agent 能力，一个包即可接入。"
+    />
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <div id="app">
+      <main class="shell">
+        <section class="board-shell" id="board-shell">
+          <nav class="tool-rail" aria-label="Canvas tools">
+            <button class="tool-button" type="button" title="导入" aria-label="导入" data-action="upload"></button>
+            <button class="tool-button" type="button" title="截图" aria-label="截图" data-action="export-image"></button>
+          </nav>
+
+          <div class="project-switcher" data-project-switcher>
+            <button class="project-trigger" type="button" aria-haspopup="menu" aria-expanded="false" data-project-trigger>
+              <span class="project-current-name" data-project-current>画布</span>
+              <span class="project-trigger-icon" aria-hidden="true" data-project-trigger-icon></span>
+            </button>
+            <div class="project-menu" hidden data-project-menu>
+              <div class="project-actions project-actions-top">
+                <button class="project-action" type="button" data-project-new>新建画布</button>
+              </div>
+              <div class="project-list" role="menu" data-project-list>
+                <div class="project-item" data-active="true">
+                  <button class="project-item-open" type="button" role="menuitem">画布</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="canvas-host" id="board-host" tabindex="0" aria-label="PixiBoard 画布"></div>
+        </section>
+      </main>
+      <div class="media-overlay" id="media-overlay" aria-hidden="true"></div>
+      <div class="selection-overlay" id="selection-overlay" aria-hidden="true"></div>
+      <!-- The SDK's DOM transformer appends the four corner resize
+           handles here. It sits above the outline overlay so a handle stays
+           grabbable where the two would otherwise overlap. -->
+      <div class="handle-overlay" id="handle-overlay" aria-hidden="true"></div>
+      <div class="text-editor-overlay" id="text-editor-overlay"></div>
+      <div class="selection-box" id="selection-box" hidden></div>
+      <div class="selection-actions" id="selection-actions" hidden aria-label="选中资源操作">
+        <div class="selection-actions-row">
+          <button type="button" class="sp-button sp-download" data-selection-action="download" title="下载原始文件" aria-label="下载原始文件"></button>
+          <button type="button" class="sp-button sp-frame" data-selection-action="restore-ratio" title="恢复导入时的宽高比" aria-label="恢复导入时的宽高比"></button>
+          <button type="button" class="sp-button sp-refresh" data-selection-action="refresh-preview" title="重新生成预览" aria-label="重新生成预览"></button>
+          <button type="button" class="sp-button sp-delete" data-selection-action="delete" title="删除节点" aria-label="删除节点"></button>
+        </div>
+        <div class="selection-playback sp-media" id="selection-playback" hidden>
+          <button type="button" class="sp-button playback-toggle" data-selection-action="toggle-playback" title="播放/暂停" aria-label="播放/暂停">▶</button>
+          <input class="playback-progress sp-progress" id="playback-progress" type="range" min="0" max="1000" value="0" aria-label="播放进度" />
+          <span class="playback-time sp-time" id="playback-time">0:00 / 0:00</span>
+        </div>
+      </div>
+      <div class="media-player-viewer" id="media-player-viewer" hidden role="dialog" aria-modal="true" aria-labelledby="media-player-title">
+        <div class="media-player-panel">
+          <header class="media-player-header">
+            <span class="viewer-title-group">
+              <strong id="media-player-title">媒体播放</strong>
+              <span class="viewer-subtitle" data-media-player-meta></span>
+            </span>
+            <span class="viewer-actions">
+              <button class="viewer-action viewer-open" type="button" data-media-player-open title="打开原始文件" aria-label="打开原始文件"></button>
+              <button class="viewer-action viewer-download" type="button" data-media-player-download title="下载原始文件" aria-label="下载原始文件"></button>
+              <button class="viewer-action viewer-close" type="button" data-media-player-close title="关闭" aria-label="关闭"></button>
+            </span>
+          </header>
+          <div class="media-player-body" data-media-player-body></div>
+        </div>
+      </div>
+      <div class="drop-hint" id="drop-hint" hidden>松开即可导入资源</div>
+      <div class="import-lock-overlay" id="import-lock" hidden aria-live="polite" aria-busy="true">
+        <div class="import-lock-panel" role="status">
+          <span class="import-lock-icon" aria-hidden="true"></span>
+          <span class="import-lock-copy">
+            <span class="import-lock-title">正在导入资源</span>
+            <span class="import-lock-subtitle">预览生成中，画布暂时锁定</span>
+          </span>
+        </div>
+      </div>
+      <input
+        id="media-input"
+        class="visually-hidden"
+        type="file"
+        accept="image/*,video/*,audio/*,.glb,.gltf,.obj,.fbx,.stl,.ply,.dae,.3mf,.3ds,.vrml,.wrl,.zip,.html,.htm,.md,.markdown,.txt,.svg"
+        multiple
+      />
+
+      <div class="status-bar" aria-live="polite">
+        <span class="status" id="status-text">启动中</span>
+        <span class="zoom-status" id="hud-scale">100%</span>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

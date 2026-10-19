@@ -1,0 +1,26 @@
+{
+  "name": "pixiboardjs-site",
+  "version": "0.1.1-alpha.4",
+  "private": true,
+  "type": "module",
+  "description": "Interactive PixiBoardJS SDK feature showcase, published to GitHub Pages",
+  "scripts": {
+    "dev": "vite",
+    "test": "node --experimental-strip-types --test test/*.test.mjs",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "fflate": "0.8.3",
+    "lucide": "^1.33.0",
+    "pixiboardjs": "workspace:*",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@pixi-board/adapter-browser": "workspace:*",
+    "@pixi-board/core": "workspace:*",
+    "@pixi-board/renderer-pixi": "workspace:*",
+    "typescript": "^5.9.2",
+    "vite": "^7.0.0"
+  }
+}

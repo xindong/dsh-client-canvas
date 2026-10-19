@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>开发文档 — PixiBoardJS</title>
+    <meta name="description" content="PixiBoardJS SDK 面向开发者的安装、API 和接入文档。" />
+    <link rel="icon" href="data:," />
+  </head>
+  <body class="docs-page">
+    <header class="docs-topbar">
+      <a class="docs-brand" href="./index.html" aria-label="返回 PixiBoardJS 交互 Demo">
+        <span class="brand-mark">◆</span>
+        <span>PixiBoardJS</span>
+        <span class="docs-brand-tag">Developer Docs</span>
+      </a>
+      <nav class="docs-topbar-links" aria-label="站点导航">
+        <a class="docs-topbar-link-current" href="./docs.html">Docs <span>开发文档</span></a>
+        <a href="./index.html">返回 Demo</a>
+        <a href="https://github.com/xindong/pixiboardSDK" target="_blank" rel="noopener">GitHub ↗</a>
+      </nav>
+    </header>
+
+    <main class="docs-layout">
+      <aside class="docs-sidebar" aria-label="开发文档目录">
+        <div class="docs-sidebar-intro">
+          <span class="eyebrow">SDK GUIDE · 0.1 ALPHA</span>
+          <h1>把画布接入你的产品</h1>
+          <p>从第一个节点开始，逐步接入 PixiBoardJS 的公开 API。</p>
+        </div>
+        <nav class="docs-toc">
+          <a class="is-current" href="#start">快速开始</a>
+          <a href="#nodes">节点 API</a>
+          <a href="#workflow">事务与交互</a>
+          <a href="#custom-nodes">自定义节点</a>
+          <a href="#site-examples">Site 实现范式</a>
+          <a href="#capabilities">Capabilities</a>
+          <a href="#agent-tools">Agent tools</a>
+          <a href="#platforms">浏览器与桌面</a>
+        </nav>
+        <a class="docs-source-link" href="https://github.com/xindong/pixiboardSDK/blob/main/docs/developers/README.md" target="_blank" rel="noopener">
+          查看完整 Markdown 文档 ↗
+        </a>
+      </aside>
+
+      <article class="docs-content">
+        <section class="docs-hero" id="start">
+          <div>
+            <span class="eyebrow">面向 SDK 使用者</span>
+            <h2>用几行代码，构建可扩展的无限画布。</h2>
+            <p class="docs-lead">PixiBoardJS 提供节点、视口、选择、历史和统一写入能力。你可以从一个浏览器画布开始，再按需加入自定义节点、持久化或 Agent 工具。</p>
+            <div class="docs-hero-actions">
+              <a class="docs-button docs-button-primary" href="#quickstart">开始接入 <span>↓</span></a>
+              <a class="docs-button" href="https://github.com/xindong/pixiboardSDK/tree/main/apps" target="_blank" rel="noopener">查看示例 ↗</a>
+            </div>
+          </div>
+          <div class="docs-hero-card">
+            <span class="card-kicker">PUBLIC SURFACE</span>
+            <code>pixiboardjs</code>
+            <div class="docs-hero-card-line"><span>节点</span><strong>CRUD + custom types</strong></div>
+            <div class="docs-hero-card-line"><span>渲染</span><strong>PixiJS + virtualization</strong></div>
+            <div class="docs-hero-card-line"><span>自动化</span><strong>Capabilities + Agent tools</strong></div>
+          </div>
+        </section>
+
+        <section class="docs-section" id="quickstart">
+          <div class="section-heading"><span class="section-number">01</span><div><span class="eyebrow">FIRST BOARD</span><h3>安装并创建第一个画布</h3></div></div>
+          <p>应用通常只需要主包。节点数据类型由应用注册，注册后再创建节点；这样每个节点的 props 都有明确的校验和序列化规则。</p>
+          <div class="docs-code-card"><button class="copy-code" data-copy-target="quickstart-code">复制</button><pre id="quickstart-code"><code><span class="code-keyword">import</span> { createPixiBoard, <span class="code-type">type</span> CustomNodeDefinition } <span class="code-keyword">from</span> <span class="code-string">"pixiboardjs"</span>;
+
+<span class="code-keyword">const</span> rect: CustomNodeDefinition&lt;{ fill: <span class="code-type">number</span> }&gt; = {
+  type: <span class="code-string">"app.rect"</span>, version: <span class="code-number">1</span>,
+  defaults: { fill: <span class="code-number">0x7c8cf8</span> },
+  validate: (value) =&gt; ({ fill: <span class="code-keyword">typeof</span> (value <span class="code-keyword">as</span> any)?.fill === <span class="code-string">"number"</span>
+    ? (value <span class="code-keyword">as</span> any).fill : <span class="code-number">0x7c8cf8</span> }),
+  getBounds: (node) =&gt; ({ minX: node.x, minY: node.y,
+    maxX: node.x + node.width, maxY: node.y + node.height }),
+};
+
+<span class="code-keyword">const</span> board = <span class="code-keyword">await</span> createPixiBoard({
+  container: document.querySelector(<span class="code-string">"#board"</span>),
+});
+<span class="code-keyword">await</span> board.nodeTypes.register(rect);
+<span class="code-keyword">await</span> board.ready;
+
+<span class="code-keyword">const</span> node = <span class="code-keyword">await</span> board.nodes.create({
+  type: <span class="code-string">"app.rect"</span>, x: <span class="code-number">40</span>, y: <span class="code-number">40</span>, width: <span class="code-number">120</span>, height: <span class="code-number">80</span>,
+  props: { fill: <span class="code-number">0x7c8cf8</span> },
+});</code></pre></div>
+          <div class="docs-note"><strong>提示</strong><span><code>board.ready</code> 表示运行时准备完成。省略 <code>container</code> 可以创建 headless board，但 capture 等需要 renderer 的能力不可用。</span></div>
+        </section>
+
+        <section class="docs-section" id="nodes">
+          <div class="section-heading"><span class="section-number">02</span><div><span class="eyebrow">DOCUMENT MODEL</span><h3>节点 API</h3></div></div>
+          <p>节点是扁平、可序列化的数据。通过 ID 操作节点，不需要接触 Store、Pixi DisplayObject 或渲染缓存。</p>
+          <div class="api-grid">
+            <div class="api-card"><code>nodes.create(input)</code><p>创建节点并返回 <code>NodeHandle</code>。</p></div>
+            <div class="api-card"><code>nodes.get(id)</code><p>读取当前不可变节点快照。</p></div>
+            <div class="api-card"><code>nodes.update(id, patch)</code><p>更新几何属性或业务 props。</p></div>
+            <div class="api-card"><code>nodes.remove(id)</code><p>删除节点并产生可撤销变更。</p></div>
+            <div class="api-card"><code>nodes.list(filter)</code><p>按类型、ID、可见性等条件查询。</p></div>
+            <div class="api-card"><code>node(id)</code><p>使用 <code>x()</code>、<code>setAttrs()</code> 和 <code>on("change")</code> 操作 handle。</p></div>
+          </div>
+        </section>
+
+        <section class="docs-section" id="workflow">
+          <div class="section-heading"><span class="section-number">03</span><div><span class="eyebrow">EDITING FLOW</span><h3>事务、选择与视口</h3></div></div>
+          <div class="workflow-grid">
+            <div><h4>事务和历史</h4><p>多个写入可以组成一个原子操作，失败时不会部分提交。<code>coalesceKey</code> 可以将连续手势合并为一个 undo step。</p><pre class="mini-code"><code>board.transaction(<span class="code-string">"Arrange"</span>, () =&gt; {
+  board.nodes.update(<span class="code-string">"a"</span>, { x: <span class="code-number">0</span>, y: <span class="code-number">0</span> });
+  board.nodes.update(<span class="code-string">"b"</span>, { x: <span class="code-number">240</span>, y: <span class="code-number">0</span> });
+}, { origin: <span class="code-string">"api"</span> });</code></pre></div>
+            <div><h4>选择和视口</h4><p>选择状态与文档节点分离。视口 API 负责平移、缩放、适配和坐标转换。</p><pre class="mini-code"><code>board.selection.set([<span class="code-string">"a"</span>, <span class="code-string">"b"</span>]);
+board.viewport.fitNodes([<span class="code-string">"a"</span>, <span class="code-string">"b"</span>]);
+board.viewport.zoomAt({ x: <span class="code-number">400</span>, y: <span class="code-number">300</span> }, <span class="code-number">1.2</span>);</code></pre></div>
+          </div>
+        </section>
+
+        <section class="docs-section" id="custom-nodes">
+          <div class="section-heading"><span class="section-number">04</span><div><span class="eyebrow">EXTEND THE CANVAS</span><h3>自定义节点</h3></div></div>
+          <p>通过 <code>board.nodeTypes.register()</code> 定义 defaults、validate、getBounds 和可选 resize 策略。需要绘制时，在同一个定义中提供 renderer 的 create、update、destroy。</p>
+          <div class="feature-strip"><div><span class="feature-icon">◇</span><strong>数据定义</strong><small>校验、默认值、bounds、resize</small></div><div><span class="feature-icon">◈</span><strong>渲染定义</strong><small>创建、更新和销毁显示对象</small></div><div><span class="feature-icon">↻</span><strong>可重建</strong><small>离屏后从最新 JSON 恢复</small></div></div>
+          <div class="docs-note"><strong>边界</strong><span>业务状态应写入 <code>node.props</code>，不要只保存在渲染对象中。这样保存、重载和 Agent 读取都能得到同一份状态。</span></div>
+        </section>
+
+        <section class="docs-section" id="site-examples">
+          <div class="section-heading"><span class="section-number">05</span><div><span class="eyebrow">FROM THE SITE</span><h3>选择、编辑、历史与媒体节点</h3></div></div>
+          <p>下面是交互 Demo 中已经验证过的一套通用实现方式：数据定义保持扁平，交互统一进入事务和历史，renderer 只管理可重建的显示对象。</p>
+          <div class="feature-strip"><div><span class="feature-icon">□</span><strong>多选与框选</strong><small>selection.set / toggle + 屏幕到世界坐标转换</small></div><div><span class="feature-icon">T</span><strong>文字编辑</strong><small>DOM textarea overlay，提交回 node.props</small></div><div><span class="feature-icon">↻</span><strong>Undo / redo</strong><small>transaction + coalesceKey 合并连续手势</small></div></div>
+          <div class="docs-code-card"><button class="copy-code" data-copy-target="site-selection-code">复制</button><pre id="site-selection-code"><code><span class="code-keyword">function</span> selectInScreenRect(start, end) {
+  <span class="code-keyword">const</span> a = board.viewport.toWorld(start);
+  <span class="code-keyword">const</span> b = board.viewport.toWorld(end);
+  <span class="code-keyword">const</span> rect = { minX: Math.min(a.x, b.x), minY: Math.min(a.y, b.y),
+    maxX: Math.max(a.x, b.x), maxY: Math.max(a.y, b.y) };
+  <span class="code-keyword">const</span> ids = board.nodes.list().filter((node) =&gt;
+    node.x &lt; rect.maxX &amp;&amp; node.x + node.width &gt; rect.minX &amp;&amp;
+    node.y &lt; rect.maxY &amp;&amp; node.y + node.height &gt; rect.minY).map((node) =&gt; node.id);
+  board.selection.set(ids);
+}
+
+board.transaction(<span class="code-string">"Move selection"</span>, () =&gt; {
+  <span class="code-keyword">for</span> (<span class="code-keyword">const</span> origin <span class="code-keyword">of</span> dragOrigins) {
+    board.nodes.update(origin.id, { x: origin.x, y: origin.y });
+  }
+}, { origin: <span class="code-string">"ui"</span>, coalesceKey: <span class="code-string">`move:${gestureId}`</span> });</code></pre></div>
+          <div class="workflow-grid">
+            <div><h4>文字编辑</h4><p>编辑态沿用渲染态 typography，并用不透明背景覆盖原文字，避免虚影。</p><pre class="mini-code"><code><span class="code-keyword">const</span> text = editor.value.replace(<span class="code-string">/\r\n/g</span>, <span class="code-string">"\n"</span>);
+board.transaction(<span class="code-string">"Edit text"</span>, () =&gt; {
+  board.nodes.update(nodeId, { height: measureTextHeight(text),
+    props: { ...current.props, text } });
+}, { origin: <span class="code-string">"ui"</span> });</code></pre></div>
+            <div><h4>图片 / 视频 / 音频</h4><p>共用一个数据定义工厂；image/video 保持比例，audio 固定高度。实际纹理由 <code>assetRefs</code> 和 renderer lease 提供。</p><pre class="mini-code"><code><span class="code-keyword">const</span> media = mediaDefinition(<span class="code-string">"video"</span>);
+<span class="code-keyword">await</span> board.nodeTypes.register(media);
+<span class="code-keyword">await</span> board.nodes.create({
+  type: <span class="code-string">"video"</span>, width: <span class="code-number">320</span>, height: <span class="code-number">180</span>,
+  props: { name: <span class="code-string">"demo.mp4"</span>, mimeType: <span class="code-string">"video/mp4"</span>, size: <span class="code-number">0</span> },
+  assetRefs: { poster: { assetId: <span class="code-string">"asset-1"</span>, variant: <span class="code-string">"preview"</span> } },
+});</code></pre></div>
+          </div>
+          <div class="docs-note"><strong>原则</strong><span>节点数据放在 <code>props</code> / <code>assetRefs</code>；DOM overlay 只承载编辑交互；renderer 实现 <code>create / update / destroy</code>，离屏后可以从最新文档重建。</span></div>
+        </section>
+
+        <section class="docs-section" id="capabilities">
+          <div class="section-heading"><span class="section-number">06</span><div><span class="eyebrow">ONE WRITE CHANNEL</span><h3>Capabilities</h3></div></div>
+          <p><code>board.capabilities</code> 是应用、插件和 Agent 共用的读写表面。写入会进入同一事务管线，并携带 origin、revision 和 ChangeSet。</p>
+          <div class="capability-pills"><span>document</span><span>nodes</span><span>assets</span><span>selection</span><span>viewport</span><span>history</span><span>preview</span><span>capture</span></div>
+        </section>
+
+        <section class="docs-section" id="agent-tools">
+          <div class="section-heading"><span class="section-number">07</span><div><span class="eyebrow">AUTOMATION READY</span><h3>Agent tools</h3></div></div>
+          <p>安装 <code>@pixi-board/agent-tools</code> 后，可以把 <code>canvas.read</code> 和 <code>canvas.write</code> 交给自己的 Agent harness。工具包提供 schema、校验、分页和可序列化错误，但不内置 MCP 或 HTTP server。</p>
+          <div class="docs-code-card"><button class="copy-code" data-copy-target="agent-code">复制</button><pre id="agent-code"><code><span class="code-keyword">import</span> { createPixiBoardAgentTools } <span class="code-keyword">from</span> <span class="code-string">"@pixi-board/agent-tools"</span>;
+
+<span class="code-keyword">const</span> tools = createPixiBoardAgentTools(board.capabilities);
+<span class="code-keyword">await</span> tools.call(<span class="code-string">"canvas.write"</span>, {
+  type: <span class="code-string">"create"</span>,
+  nodes: [{ type: <span class="code-string">"app.rect"</span>, x: <span class="code-number">0</span>, y: <span class="code-number">0</span>, width: <span class="code-number">100</span>, height: <span class="code-number">60</span>, props: { fill: <span class="code-number">0x52d68e</span> } }],
+});</code></pre></div>
+        </section>
+
+        <section class="docs-section" id="platforms">
+          <div class="section-heading"><span class="section-number">08</span><div><span class="eyebrow">DEPLOY WHERE YOU WORK</span><h3>浏览器与桌面接入</h3></div></div>
+          <div class="platform-grid"><div><h4>Browser</h4><p>从 <code>pixiboardjs/browser</code> 使用 DOM overlay 和浏览器宿主能力；通过 persistence 注入保存和加载。</p></div><div><h4>Tauri</h4><p>复用同一套 board API，把文件、项目和桌面能力通过宿主 adapter 注入。</p></div></div>
+          <div class="docs-final-cta"><div><span class="eyebrow">NEXT STEP</span><h3>准备好开始了吗？</h3><p>先运行交互 Demo，再从完整开发文档和示例工程开始接入。</p></div><div class="docs-hero-actions"><a class="docs-button docs-button-primary" href="./index.html">打开 Demo ↗</a><a class="docs-button" href="https://github.com/xindong/pixiboardSDK/blob/main/docs/developers/README.md" target="_blank" rel="noopener">完整文档 ↗</a></div></div>
+        </section>
+      </article>
+    </main>
+    <script type="module" src="/src/docs.ts"></script>
+  </body>
+</html>
