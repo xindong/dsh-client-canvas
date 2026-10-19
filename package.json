@@ -39,7 +39,6 @@
     "@deepseek-ai/cordis": "~4.0.5",
     "@deepseek-ai/dsh-host-webserver": "0.2.0-rc.2",
     "@deepseek-ai/dsh-office-to-pdf": "0.2.0-rc.2",
-    "@xindong/dsh-canvas": ">=0.1.0",
     "@deepseek-ai/dsh-client-ui-conversation": "0.2.0-rc.2"
   },
   "license": "MIT",
@@ -58,6 +57,7 @@
   },
   "dependencies": {
     "@napi-rs/canvas": "1.0.10",
+    "@xindong/dsh-canvas": "github:xindong/dsh-canvas#db36582d33234f8e47808d2525482307bde83b47",
     "fflate": "0.8.3",
     "markdown-it": "15.0.2",
     "mivo-model-viewer": "0.7.0",
