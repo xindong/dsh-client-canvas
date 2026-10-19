@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "DSH Canvas",
+    "description": "A shared, persistent canvas for the DSH web app and its agents. Organize media, nodes, and connections in one local workspace."
+  }
+}
