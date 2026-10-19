@@ -1,6 +1,6 @@
 {
   "name": "@xindong/dsh-client-canvas",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Persistent shared canvas for DeepSeek Harness with a browser UI and Agent tools for working with nodes, connections, and local media.",
   "type": "module",
   "main": "./lib/index.js",
@@ -10,7 +10,8 @@
       "default": "./lib/client.js"
     },
     "./package.json": "./package.json",
-    "./cordis.patch.yml": "./cordis.patch.yml"
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "lib",
