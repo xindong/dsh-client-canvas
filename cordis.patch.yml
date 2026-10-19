@@ -1,3 +1,7 @@
 - insert:
+    - id: xindong-canvas
+      name: '@xindong/dsh-canvas'
+      config:
+        root: !!js dshHomePath('canvas')
     - id: xindong-client-canvas
       name: '@xindong/dsh-client-canvas'

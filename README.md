@@ -9,15 +9,30 @@
 - Node.js **22.18+**、DSH **0.2.0-rc.2**；不支持旧版 DSH。Core 还使用 DSH 的 `tools` 和 `systemPrompt` 服务，Web 插件使用 Web Server 和 Conversation UI；Office 预览需要 DSH 的 `officeToPdf` 服务。
 - 本包依赖已发布的 `pixiboardjs@0.1.0-alpha.5`。官方 site 源码快照固定在 SDK commit `4a22b10b4d902afc351b710da0002e0ed8117740`；这两个版本需保持匹配。
 
-在已有 DSH 安装中，依次安装 Core 和 Web 插件：
+在已有 DSH 安装中，一条命令安装完整的画布 UI 与 Agent 工具：
 
 ```bash
-dsh plugin --profile web add github:xindong/dsh-canvas
 dsh plugin --profile web add github:xindong/dsh-client-canvas
+```
+
+Web 包会从固定的 Core GitHub commit 传递安装 `@xindong/dsh-canvas`；其 bundle 补丁会先启用 Core，再启用 Web，无需单独安装 Core。启动 DSH：
+
+```bash
 dsh web
 ```
 
 已有 DSH 进程需在安装或更新插件后重启，再刷新浏览器。打开 DSH 提供的完整登录地址（包括 `?token=...`），在会话中切换到 **Canvas** Tab。插件沿用当前 DSH 的数据目录（`$DSH_HOME`，默认 `~/.dsh`），不会自动迁移旧画布。
+
+仅需要画布文档与 Agent 工具、不需要 Web UI 时，可单独安装 Core：`dsh plugin --profile web add github:xindong/dsh-canvas`。
+
+**从旧版双插件安装迁移：**先停止 DSH，再依次运行：
+
+```bash
+dsh plugin --profile web add github:xindong/dsh-client-canvas
+dsh plugin --profile web remove @xindong/dsh-canvas
+```
+
+第二条只移除 Core 的直接安装与独立 bundle 选择；Web 的依赖仍会提供 Core 代码。检查 `$DSH_HOME/profiles/web/package.json`（默认 `~/.dsh/profiles/web/package.json`）的 `dsh.profile.bundles`：只保留 `@xindong/dsh-client-canvas`，不要同时选择 `@xindong/dsh-canvas`。若另有手写 profile/home patch 插入 `xindong-canvas`，先迁移其中的自定义配置并移除重复条目。不要删除画布目录或 `canvas-storage.json`；确认无重复条目后再启动 DSH，刷新浏览器。
 
 ## 快速开始
 
@@ -76,6 +91,6 @@ node scripts/update-upstream.mjs --revision <40-character-commit-sha>
 
 也可用 `--latest` 明确跟进 SDK `main`，但其包版本仍须与依赖一致。脚本通过 `gh` 获取不可变源码快照，按上游 lockfile 获取并校验浏览器依赖；若 site 接入点或公开预览契约变化则中止，不应手工修改 `lib/site/upstream/`。更新后检查 `lib/site/upstream.json` 的 revision/version、适配层兼容性与许可证，再同步运行副本并重启 DSH。
 
-本地开发可把 Core 与 Web 仓库放在同一父目录，分别用绝对路径安装到 DSH 的 `web` profile，然后从 Web 仓库运行 `pnpm sync:runtime`（或 `bash scripts/sync-runtime.sh`）。`DSH_CANVAS_CORE_DIR` 可指定 Core 仓库，`DSH_WEB_PROFILE_DIR` 可指定 profile；修改服务端代码后重启 DSH，修改浏览器代码后刷新页面。`scripts/start-local.sh` 是仓库开发辅助入口，可同步两个插件并使用独立的 DSH 运行时；普通用户不需要它。
+本地开发可把 Core 与 Web 仓库放在同一父目录，将两份源码链接到 DSH 的 `web` profile，然后从 Web 仓库运行 `pnpm sync:runtime`（或 `bash scripts/sync-runtime.sh`）。开发 profile 的 `dsh.profile.bundles` 只选择 Web bundle，不能再选 Core bundle。`DSH_CANVAS_CORE_DIR` 可指定 Core 仓库，`DSH_WEB_PROFILE_DIR` 可指定 profile；修改服务端代码后重启 DSH，修改浏览器代码后刷新页面。`scripts/start-local.sh` 是仓库开发辅助入口，可同步两个插件并使用独立的 DSH 运行时；普通用户不需要它。
 
 问题与贡献请使用 [GitHub Issues](https://github.com/xindong/dsh-client-canvas/issues)，提供版本、复现步骤与脱敏日志。许可证见 [LICENSE](LICENSE)；第三方依赖保留各自许可证。
