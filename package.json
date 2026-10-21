@@ -1,7 +1,7 @@
 {
   "name": "@xindong/dsh-client-canvas",
   "version": "0.1.2",
-  "description": "Persistent shared canvas for DeepSeek Harness with a browser UI and Agent tools for working with nodes, connections, and local media.",
+  "description": "An AI-native multimodal canvas for DSH: preview images, video, audio, 3D models, PDFs, documents, and code; connect ideas and collaborate with agents in a persistent local workspace.",
   "type": "module",
   "main": "./lib/index.js",
   "exports": {
@@ -20,6 +20,7 @@
     "docs",
     "locale",
     "cordis.patch.yml",
+    "screenshots.json",
     "README.md",
     "LICENSE"
   ],
@@ -73,5 +74,26 @@
     "@deepseek-ai/dsh-office-to-pdf": {
       "optional": true
     }
-  }
+  },
+  "author": {
+    "name": "Kagari (maoxinxin-xd)",
+    "url": "https://github.com/maoxinxin-xd"
+  },
+  "homepage": "https://github.com/xindong/dsh-client-canvas#readme",
+  "bugs": {
+    "url": "https://github.com/xindong/dsh-client-canvas/issues"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "ai-native",
+    "canvas",
+    "multimodal",
+    "agent",
+    "image",
+    "video",
+    "audio",
+    "3d",
+    "pixiboardjs"
+  ]
 }

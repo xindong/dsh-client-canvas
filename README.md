@@ -2,7 +2,41 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-`@xindong/dsh-client-canvas` 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 提供可与 Agent 共享的浏览器画布。它将 [PixiBoardSDK](https://github.com/xindong/pixiboardSDK) 官方 site 接入 DSH 的画布 Tab，并通过 [@xindong/dsh-canvas](https://github.com/xindong/dsh-canvas) 保存文档与资源；浏览器不再保存另一份权威画布数据。两个插件均以 MIT 许可证发布。
+**AI 原生多模态画布，让素材、想法与 Agent 在同一个空间里协作。**
+
+把图片、视频、音频、3D 模型、PDF、文档与代码放进一块可持续编辑的画布，用节点与连线组织上下文，在查看素材的同时直接向 Agent 发出操作指令。从资料收集、内容创作到结果整理，让对话与成果在画布上连接起来。
+
+*An AI-native multimodal canvas for DeepSeek Harness — bring media, files, and agent collaboration into one persistent visual workspace.*
+
+[![DeepSeek Harness plugin](https://img.shields.io/badge/DeepSeek_Harness-Canvas-536BD4)](https://github.com/deepseek-ai/deepseek-harness)
+[![Multimodal](https://img.shields.io/badge/多模态-图片_·_视频_·_音频_·_3D-52667A)](#多模态工作空间)
+[![Agent collaboration](https://img.shields.io/badge/Agent-共享画布-52667A)](#快速开始)
+
+## 多模态工作空间
+
+- **素材集中展示**：图片直接查看，视频与音频可播放；3D 模型、PDF、Office、HTML、Markdown、文本与代码等文件生成预览，其他格式保留原文件卡片与下载入口。Office 预览需宿主提供转换服务。
+- **可视化组织上下文**：多个画布、自由布局、缩放、选区与有向连线，把参考素材、过程节点和输出成果串成可浏览的关系图。
+- **面向节点与 Agent 协作**：选中素材即可发送「Agent 操作」，按需携带当前节点、来源、后续或相连节点的上下文；在画布旁继续使用 DSH 原生对话。
+- **Agent 直接读写画布**：通过 `canvas_read` 与 `canvas_write` 查询内容、创建与更新节点、调整布局及管理连线，生成结果可导入画布并保留节点关系。
+- **持续保存与个性化配置**：文档与资源保存在本机，用户与 Agent 编辑同一份画布；可配置画布样式、节点参考范围、系统提示词与动态画布概况。
+
+## 运行截图
+
+### 素材、对话与创作成果同屏
+
+图片、文件预览、视频、音频波形与 3D 模型节点集中在画布，右侧悬浮对话面板连接 Agent，选中节点即可继续发出指令。
+
+![DSH Canvas 多模态画布，展示文件、图片、视频、音频与 3D 模型节点及 Agent 对话面板](docs/screenshots/multimodal-canvas.png)
+
+### 让 Agent 理解你的画布
+
+自定义系统提示词与动态画布概况，将当前画布、节点与连线信息作为协作上下文。
+
+![DSH Canvas 提示词设置，支持系统提示词与动态画布概况](docs/screenshots/agent-prompt-settings.png)
+
+`@xindong/dsh-client-canvas` 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 提供浏览器画布，基于 [PixiBoardSDK](https://github.com/xindong/pixiboardSDK)，通过 [@xindong/dsh-canvas](https://github.com/xindong/dsh-canvas) 保存文档与资源。浏览器与 Agent 共用同一份画布数据。两个插件均以 MIT 许可证发布。
+
+作者：[Kagari · @maoxinxin-xd](https://github.com/maoxinxin-xd)。
 
 ## 要求与安装
 
