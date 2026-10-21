@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "DSH Canvas",
-    "description": "A shared, persistent canvas for the DSH web app and its agents. Organize media, nodes, and connections in one local workspace."
+    "description": "An AI-native multimodal canvas for DSH: preview images, video, audio, 3D models, PDFs, documents, and code; connect ideas and collaborate with agents in a persistent local workspace."
   }
 }
