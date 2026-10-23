@@ -40,7 +40,7 @@
 
 ## 要求与安装
 
-- Node.js **22.18+**、DSH **0.2.0-rc.2**；不支持旧版 DSH。Core 还使用 DSH 的 `tools` 和 `systemPrompt` 服务，Web 插件使用 Web Server 和 Conversation UI；Office 预览需要 DSH 的 `officeToPdf` 服务。
+- Node.js **22.18+**、DSH **>=0.2.0-rc.2 <0.3.0**；不支持低于该基线的 DSH。使用兼容范围避免更新宿主后被精确版本锁定拒绝安装。Core 还使用 DSH 的 `tools` 和 `systemPrompt` 服务，Web 插件使用 Web Server 和 Conversation UI；Office 预览需要 DSH 的 `officeToPdf` 服务。
 - 本包依赖已发布的 `pixiboardjs@0.1.0-alpha.5`。官方 site 源码快照固定在 SDK commit `4a22b10b4d902afc351b710da0002e0ed8117740`；这两个版本需保持匹配。
 
 在已有 DSH 安装中，一条命令安装完整的画布 UI 与 Agent 工具：
