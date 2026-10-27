@@ -4,4 +4,4 @@
       config:
         root: !!js dshHomePath('canvas')
     - id: xindong-client-canvas
-      name: '@xindong/dsh-client-canvas'
+      name: '@miragari/dsh-client-canvas'

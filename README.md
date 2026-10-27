@@ -34,7 +34,7 @@
 
 ![DSH Canvas 提示词设置，支持系统提示词与动态画布概况](docs/screenshots/agent-prompt-settings.png)
 
-`@xindong/dsh-client-canvas` 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 提供浏览器画布，基于 [PixiBoardSDK](https://github.com/xindong/pixiboardSDK)，通过 [@xindong/dsh-canvas](https://github.com/xindong/dsh-canvas) 保存文档与资源。浏览器与 Agent 共用同一份画布数据。两个插件均以 MIT 许可证发布。
+`@miragari/dsh-client-canvas` 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 提供浏览器画布，基于 [PixiBoardSDK](https://github.com/xindong/pixiboardSDK)，通过 [@xindong/dsh-canvas](https://github.com/xindong/dsh-canvas) 保存文档与资源。浏览器与 Agent 共用同一份画布数据。两个插件均以 MIT 许可证发布。
 
 作者：[Kagari · @maoxinxin-xd](https://github.com/maoxinxin-xd)。
 
@@ -46,7 +46,7 @@
 在已有 DSH 安装中，一条命令安装完整的画布 UI 与 Agent 工具：
 
 ```bash
-dsh plugin --profile web add github:xindong/dsh-client-canvas
+dsh plugin --profile web add @miragari/dsh-client-canvas
 ```
 
 Web 包会从固定的 Core GitHub commit 传递安装 `@xindong/dsh-canvas`；其 bundle 补丁会先启用 Core，再启用 Web，无需单独安装 Core。启动 DSH：
@@ -59,14 +59,14 @@ dsh web
 
 仅需要画布文档与 Agent 工具、不需要 Web UI 时，可单独安装 Core：`dsh plugin --profile web add github:xindong/dsh-canvas`。
 
-**从旧版双插件安装迁移：**先停止 DSH，再依次运行：
+**从旧版 `@xindong/dsh-client-canvas` 迁移：**先停止 DSH，再移除旧 Web 包并安装新包：
 
 ```bash
-dsh plugin --profile web add github:xindong/dsh-client-canvas
-dsh plugin --profile web remove @xindong/dsh-canvas
+dsh plugin --profile web remove @xindong/dsh-client-canvas
+dsh plugin --profile web add @miragari/dsh-client-canvas
 ```
 
-第二条只移除 Core 的直接安装与独立 bundle 选择；Web 的依赖仍会提供 Core 代码。检查 `$DSH_HOME/profiles/web/package.json`（默认 `~/.dsh/profiles/web/package.json`）的 `dsh.profile.bundles`：只保留 `@xindong/dsh-client-canvas`，不要同时选择 `@xindong/dsh-canvas`。若另有手写 profile/home patch 插入 `xindong-canvas`，先迁移其中的自定义配置并移除重复条目。不要删除画布目录或 `canvas-storage.json`；确认无重复条目后再启动 DSH，刷新浏览器。
+如果曾单独安装 Core，还需运行 `dsh plugin --profile web remove @xindong/dsh-canvas`，Web 的依赖仍会提供 Core 代码。检查 `$DSH_HOME/profiles/web/package.json`（默认 `~/.dsh/profiles/web/package.json`）的 `dsh.profile.bundles`：只保留 `@miragari/dsh-client-canvas`，不要同时选择旧 Web 包或 Core。若另有手写 profile/home patch 插入 `xindong-canvas`，先迁移其中的自定义配置并移除重复条目。不要删除画布目录或 `canvas-storage.json`；确认无重复条目后再启动 DSH，刷新浏览器。
 
 ## 快速开始
 
