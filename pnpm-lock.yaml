@@ -12,8 +12,8 @@ importers:
         specifier: 1.0.10
         version: 1.0.10
       '@xindong/dsh-canvas':
-        specifier: github:xindong/dsh-canvas#2b29c1dc6e5e003ce255fa9419b6647cf555fa45
-        version: https://codeload.github.com/xindong/dsh-canvas/tar.gz/2b29c1dc6e5e003ce255fa9419b6647cf555fa45
+        specifier: github:xindong/dsh-canvas#806008806d781c0762182d8168861d893c85653d
+        version: https://codeload.github.com/xindong/dsh-canvas/tar.gz/806008806d781c0762182d8168861d893c85653d
       es-module-lexer:
         specifier: 3.0.4
         version: 3.0.4
@@ -381,8 +381,8 @@ packages:
   '@webgpu/types@0.1.74':
     resolution: {integrity: sha512-lgiI4hbuLcI9unnm2cL/tvCaQU45dp0xcLWJh5uB/9MBGvIA4F8XIk7nSiBeg+K4xWGYwgZKn80LmERI5CxoTA==}
 
-  '@xindong/dsh-canvas@https://codeload.github.com/xindong/dsh-canvas/tar.gz/2b29c1dc6e5e003ce255fa9419b6647cf555fa45':
-    resolution: {tarball: https://codeload.github.com/xindong/dsh-canvas/tar.gz/2b29c1dc6e5e003ce255fa9419b6647cf555fa45}
+  '@xindong/dsh-canvas@https://codeload.github.com/xindong/dsh-canvas/tar.gz/806008806d781c0762182d8168861d893c85653d':
+    resolution: {tarball: https://codeload.github.com/xindong/dsh-canvas/tar.gz/806008806d781c0762182d8168861d893c85653d}
     version: 0.1.0
     engines: {node: '>=22.18.0'}
     peerDependencies:
@@ -912,7 +912,9 @@ snapshots:
 
   '@webgpu/types@0.1.74': {}
 
-  '@xindong/dsh-canvas@https://codeload.github.com/xindong/dsh-canvas/tar.gz/2b29c1dc6e5e003ce255fa9419b6647cf555fa45': {}
+  '@xindong/dsh-canvas@https://codeload.github.com/xindong/dsh-canvas/tar.gz/806008806d781c0762182d8168861d893c85653d':
+    dependencies:
+      es-module-lexer: 3.0.4
 
   '@xmldom/xmldom@0.8.15': {}
 
