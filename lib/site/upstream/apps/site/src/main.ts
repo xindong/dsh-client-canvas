@@ -1322,7 +1322,9 @@ async function requestMediaRepair(node: BoardNode<MediaProps>): Promise<void> {
   if (!assetId || !boardId || !isMediaKind(node.type)) return;
   showToast("正在刷新预览...");
   try {
-    await transport(`/boards/${encodeURIComponent(boardId)}/assets/${encodeURIComponent(assetId)}/media`, {
+    const transportFn = typeof transport === "function" ? transport : undefined;
+    if (!transportFn) throw new Error("媒体服务不可用");
+    await transportFn(`/boards/${encodeURIComponent(boardId)}/assets/${encodeURIComponent(assetId)}/media`, {
       method: "POST", json: {},
     });
     showToast("已开始后台刷新", "success");

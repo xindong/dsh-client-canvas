@@ -14,6 +14,9 @@ importers:
       '@xindong/dsh-canvas':
         specifier: github:xindong/dsh-canvas#2b29c1dc6e5e003ce255fa9419b6647cf555fa45
         version: https://codeload.github.com/xindong/dsh-canvas/tar.gz/2b29c1dc6e5e003ce255fa9419b6647cf555fa45
+      es-module-lexer:
+        specifier: 3.0.4
+        version: 3.0.4
       fflate:
         specifier: 0.8.3
         version: 0.8.3
@@ -484,6 +487,9 @@ packages:
   entities@8.1.0:
     resolution: {integrity: sha512-kxL7msIffSuh9aaFAMD7rxAIuTRMAHMeBtgHW2yUdWw732ZNh4MehkF2gdjvtdmikkaIP9bFDDJOPlsvm7avrA==}
     engines: {node: '>=20.19.0'}
+
+  es-module-lexer@3.0.4:
+    resolution: {integrity: sha512-BldNY5mwkVu+cQ5Ymn3e6hB9Sx8XHx4ZevWbiUyZbfKxJxYO27Hf0wfzkxIaD5CAJMaGl3YspKELj0ff/7nCMA==}
 
   eventemitter3@5.0.4:
     resolution: {integrity: sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw==}
@@ -993,6 +999,8 @@ snapshots:
   entities@7.0.1: {}
 
   entities@8.1.0: {}
+
+  es-module-lexer@3.0.4: {}
 
   eventemitter3@5.0.4: {}
 

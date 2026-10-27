@@ -24,7 +24,7 @@
     "src/preview.ts": "067e88fe11fab675b9aaeec4dbc0cc27c3a54c219d9ec0f6f2c8a2b243d3a430"
   },
   "localSourceHashes": {
-    "src/main.ts": "35918569842a87ec39daba9f132e068761a2af4bd5fb50c6c5de2f135daef859",
+    "src/main.ts": "3c9e32e64a06db137985b2239147b4a57ae651c2ea368abf7ade4f8dc4cde1ab",
     "src/media.ts": "3e5ce063958ca84257b7ff3fb396ed1e420c98532e40cf741ddb39721ccc87ec"
   }
 }

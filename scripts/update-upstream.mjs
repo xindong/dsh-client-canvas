@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Import exact upstream sources, preserving recorded host overrides. No build.
+// Reimport the recorded upstream sources, or explicitly update to a new
+// revision after checking SDK compatibility. Preserve host overrides. No build.
 import { execFileSync } from 'node:child_process'
 import { cp, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
@@ -53,6 +54,7 @@ if (unrecordedChanges.length) {
 }
 const revisionIndex = process.argv.indexOf('--revision')
 if (revisionIndex >= 0 && process.argv.includes('--latest')) throw new Error('Use --revision or --latest, not both')
+const isExplicitUpdate = revisionIndex >= 0 || process.argv.includes('--latest')
 const revision = revisionIndex >= 0 ? process.argv[revisionIndex + 1]
   : process.argv.includes('--latest')
     ? JSON.parse(execFileSync('gh', ['api', 'repos/xindong/pixiboardSDK/commits/main'], { encoding: 'utf8' })).sha
@@ -66,8 +68,12 @@ try {
   await writeFile(join(temp, 'source.tgz'), archive)
   execFileSync('tar', ['-xzf', join(temp, 'source.tgz'), '-C', staging, '--strip-components=1'])
   const version = JSON.parse(await readFile(join(staging, 'packages/pixiboardjs/package.json'), 'utf8')).version
-  const installedVersion = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')).dependencies.pixiboardjs
-  if (version !== installedVersion) throw new Error(`Site ${version} does not match published SDK dependency ${installedVersion}`)
+  if (isExplicitUpdate) {
+    const installedVersion = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')).dependencies.pixiboardjs
+    if (version !== installedVersion) throw new Error(`Site ${version} does not match published SDK dependency ${installedVersion}`)
+  } else if (version !== previous.version) {
+    throw new Error(`Recorded site snapshot ${previous.revision} is ${version}, but lib/site/upstream.json records ${previous.version}`)
+  }
   // Fail before replacing our known-good snapshot if an upstream integration
   // seam changed. Never silently ship a UI copy that no longer talks to Core.
   const main = await readFile(join(staging, 'apps/site/src/main.ts'), 'utf8')

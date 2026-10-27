@@ -113,11 +113,15 @@ HTML/Markdown 相对资源按包内相对路径解析。通过 Agent 的 `asset_
 
 ## 上游更新与开发
 
-在仓库根目录安装依赖后，重新导入当前锁定的 SDK site 快照：
+在仓库根目录安装依赖后，重新导入 `lib/site/upstream.json` 已记录的 SDK site 快照：
 
 ```bash
 node scripts/update-upstream.mjs
 ```
+
+默认命令只同步已记录的 revision，不把 site 快照升级到当前 `pixiboardjs` 依赖版本。因此已记录的 alpha.5 site 快照可与 alpha.6 浏览器 SDK 共存；脚本仍保留 `localSourceHashes` 登记的 `main.ts`、`media.ts` 宿主定制，并保持 manifest 中的 revision/version 为真实上游来源。
+
+以下两种参数属于显式更新上游，目标提交的 SDK 包版本必须与项目依赖 `pixiboardjs` 完全一致，否则脚本会在替换快照前中止。
 
 更新到指定提交前，先将项目依赖 `pixiboardjs` 调整为该提交的 SDK 包版本，然后导入并核对变更：
 
