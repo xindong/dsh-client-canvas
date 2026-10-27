@@ -12,8 +12,11 @@ importers:
         specifier: 1.0.10
         version: 1.0.10
       '@xindong/dsh-canvas':
-        specifier: github:xindong/dsh-canvas#6866bc55fb0d6931c7c96abf60f05e0421043dc6
-        version: https://codeload.github.com/xindong/dsh-canvas/tar.gz/6866bc55fb0d6931c7c96abf60f05e0421043dc6
+        specifier: github:xindong/dsh-canvas#806008806d781c0762182d8168861d893c85653d
+        version: https://codeload.github.com/xindong/dsh-canvas/tar.gz/806008806d781c0762182d8168861d893c85653d
+      es-module-lexer:
+        specifier: 3.0.4
+        version: 3.0.4
       fflate:
         specifier: 0.8.3
         version: 0.8.3
@@ -27,8 +30,8 @@ importers:
         specifier: 6.4.299
         version: 6.4.299
       pixiboardjs:
-        specifier: 0.1.0-alpha.5
-        version: 0.1.0-alpha.5
+        specifier: 0.1.0-alpha.6
+        version: 0.1.0-alpha.6
       playwright:
         specifier: 1.64.0
         version: 1.64.0
@@ -378,8 +381,8 @@ packages:
   '@webgpu/types@0.1.74':
     resolution: {integrity: sha512-lgiI4hbuLcI9unnm2cL/tvCaQU45dp0xcLWJh5uB/9MBGvIA4F8XIk7nSiBeg+K4xWGYwgZKn80LmERI5CxoTA==}
 
-  '@xindong/dsh-canvas@https://codeload.github.com/xindong/dsh-canvas/tar.gz/6866bc55fb0d6931c7c96abf60f05e0421043dc6':
-    resolution: {tarball: https://codeload.github.com/xindong/dsh-canvas/tar.gz/6866bc55fb0d6931c7c96abf60f05e0421043dc6}
+  '@xindong/dsh-canvas@https://codeload.github.com/xindong/dsh-canvas/tar.gz/806008806d781c0762182d8168861d893c85653d':
+    resolution: {tarball: https://codeload.github.com/xindong/dsh-canvas/tar.gz/806008806d781c0762182d8168861d893c85653d}
     version: 0.1.0
     engines: {node: '>=22.18.0'}
     peerDependencies:
@@ -484,6 +487,9 @@ packages:
   entities@8.1.0:
     resolution: {integrity: sha512-kxL7msIffSuh9aaFAMD7rxAIuTRMAHMeBtgHW2yUdWw732ZNh4MehkF2gdjvtdmikkaIP9bFDDJOPlsvm7avrA==}
     engines: {node: '>=20.19.0'}
+
+  es-module-lexer@3.0.4:
+    resolution: {integrity: sha512-BldNY5mwkVu+cQ5Ymn3e6hB9Sx8XHx4ZevWbiUyZbfKxJxYO27Hf0wfzkxIaD5CAJMaGl3YspKELj0ff/7nCMA==}
 
   eventemitter3@5.0.4:
     resolution: {integrity: sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw==}
@@ -603,8 +609,8 @@ packages:
   pixi.js@8.22.0:
     resolution: {integrity: sha512-QbTANHMZ751MIjLiLSUSM8a7LNMWwMIf0KbRCqlW+SPS9hNLfSVS+cl1O2SEp9g1K/wyLzj/OJHv+1TUfiPr/w==}
 
-  pixiboardjs@0.1.0-alpha.5:
-    resolution: {integrity: sha512-PIWcnb5YN4e9nyZ4438EJoX7mgqEr8uIc1XP4ZfUi02XeqmbUCJv7c4apnH/xFdi9dn3n3TTSRd1aB2CwIqGug==}
+  pixiboardjs@0.1.0-alpha.6:
+    resolution: {integrity: sha512-UYkpzFp7/aTQmZkrn1FFRLRYXCUHXinhetSrIth1YrMII+IrPFNUNkhsZaCpV+h5dJo29ZOxfeXi2QexAQ16Ug==}
     engines: {node: '>=20'}
 
   playwright-core@1.64.0:
@@ -906,7 +912,9 @@ snapshots:
 
   '@webgpu/types@0.1.74': {}
 
-  '@xindong/dsh-canvas@https://codeload.github.com/xindong/dsh-canvas/tar.gz/6866bc55fb0d6931c7c96abf60f05e0421043dc6': {}
+  '@xindong/dsh-canvas@https://codeload.github.com/xindong/dsh-canvas/tar.gz/806008806d781c0762182d8168861d893c85653d':
+    dependencies:
+      es-module-lexer: 3.0.4
 
   '@xmldom/xmldom@0.8.15': {}
 
@@ -993,6 +1001,8 @@ snapshots:
   entities@7.0.1: {}
 
   entities@8.1.0: {}
+
+  es-module-lexer@3.0.4: {}
 
   eventemitter3@5.0.4: {}
 
@@ -1152,7 +1162,7 @@ snapshots:
       parse-svg-path: 0.2.0
       tiny-lru: 11.4.7
 
-  pixiboardjs@0.1.0-alpha.5:
+  pixiboardjs@0.1.0-alpha.6:
     dependencies:
       pixi.js: 8.22.0
 

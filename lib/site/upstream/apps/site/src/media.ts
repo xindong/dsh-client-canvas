@@ -284,20 +284,9 @@ export class MediaLibrary {
     return isCurrent() ? variant : false;
   }
 
-  async updateVideoPreviewFromElement(assetId: string, video: HTMLVideoElement): Promise<boolean> {
-    if (!video.videoWidth || !video.videoHeight) return false;
-
-    const { width, height } = previewSize(video.videoWidth, video.videoHeight);
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    if (!context) return false;
-
-    context.drawImage(video, 0, 0, width, height);
-    await this.adapter.putDerivative(assetId, "preview", await canvasBlob(canvas));
-    this.revokeLease(assetId, "preview");
-    return true;
+  /** Drop one mutable URL/mutation-key lease after a host-side derivative update. */
+  invalidateVariant(assetId: string, variant: AssetVariant): void {
+    this.revokeLease(assetId, variant);
   }
 
   async clear(): Promise<void> {

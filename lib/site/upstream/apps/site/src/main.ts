@@ -6,13 +6,14 @@ import {
   createPixiBoard,
   type BoardConnection,
   type ConnectionsController,
+  type CustomDisplayObject,
   type CustomNodeDefinition,
   type CustomTextureLease,
   type DomTransformer,
   type PixiBoard,
   type RuntimeRenderer,
 } from "pixiboardjs/browser";
-import { NodeTypeRegistry, type AssetRef, type BoardDocument, type BoardNode } from "@pixi-board/core";
+import { fitMediaRect, NodeTypeRegistry, type AssetRef, type BoardDocument, type BoardNode, type ContentFit } from "@pixi-board/core";
 import { createPixiApplicationFactory, loadPixiRuntime, PixiBoardRenderer } from "@pixi-board/renderer-pixi";
 import { createIcon } from "./ui/icons";
 import {
@@ -25,7 +26,7 @@ import {
   type ModelVertex,
 } from "./media";
 import { createMediaPlaybackController, type MediaPlaybackController } from "./media-playback";
-import { SiteProjectStore, type SiteProject } from "./project-store";
+import { SiteProjectStore, transport, type SiteProject } from "./project-store";
 import { ProjectSwitcherController } from "./ui/project-switcher";
 import { isDocumentNode, isPreviewNode, requestDocumentPreview, previewTypeLabel, reportPreviewTextureReady, getPreviewTextureEpoch, previewProperties, configureLocalPreviewRenderer, hasSitePreviewRenderer, type PreviewImportState } from "./preview";
 
@@ -137,7 +138,22 @@ const textTypeDefinition: CustomNodeDefinition<TextProps> = {
   },
 };
 
-type MediaProps = PreviewImportState & { name: string; mimeType: string; size: number; duration?: number; playbackTime?: number; intrinsicWidth?: number; intrinsicHeight?: number };
+type MediaProps = PreviewImportState & {
+  name: string;
+  mimeType: string;
+  size: number;
+  duration?: number;
+  playbackTime?: number;
+  intrinsicWidth?: number;
+  intrinsicHeight?: number;
+  fit?: "contain" | "cover" | "stretch";
+  mediaFit?: "contain" | "cover" | "stretch";
+  mediaAutoSize?: boolean;
+  mediaAutoSizeBaseline?: { width: number; height: number };
+  mediaContentHash?: string;
+  mediaPreparationStatus?: string;
+  mediaPreparationError?: string | null;
+};
 
 /**
  * The Pixi renderer already ships image/video/audio renderers that resolve
@@ -163,6 +179,17 @@ function mediaTypeDefinition(type: MediaKind): CustomNodeDefinition<MediaProps> 
         ...(typeof candidate.playbackTime === "number" && Number.isFinite(candidate.playbackTime) && candidate.playbackTime > 0 ? { playbackTime: candidate.playbackTime } : {}),
         ...(typeof candidate.intrinsicWidth === "number" ? { intrinsicWidth: candidate.intrinsicWidth } : {}),
         ...(typeof candidate.intrinsicHeight === "number" ? { intrinsicHeight: candidate.intrinsicHeight } : {}),
+        ...(candidate.fit === "contain" || candidate.fit === "cover" || candidate.fit === "stretch" ? { fit: candidate.fit } : {}),
+        ...(candidate.mediaFit === "contain" || candidate.mediaFit === "cover" || candidate.mediaFit === "stretch" ? { mediaFit: candidate.mediaFit } : {}),
+        ...(typeof candidate.mediaAutoSize === "boolean" ? { mediaAutoSize: candidate.mediaAutoSize } : {}),
+        ...(candidate.mediaAutoSizeBaseline &&
+          typeof candidate.mediaAutoSizeBaseline.width === "number" && Number.isFinite(candidate.mediaAutoSizeBaseline.width) && candidate.mediaAutoSizeBaseline.width > 0 &&
+          typeof candidate.mediaAutoSizeBaseline.height === "number" && Number.isFinite(candidate.mediaAutoSizeBaseline.height) && candidate.mediaAutoSizeBaseline.height > 0
+          ? { mediaAutoSizeBaseline: candidate.mediaAutoSizeBaseline } : {}),
+        ...(typeof candidate.mediaContentHash === "string" ? { mediaContentHash: candidate.mediaContentHash } : {}),
+        ...(typeof candidate.mediaPreparationStatus === "string" ? { mediaPreparationStatus: candidate.mediaPreparationStatus } : {}),
+        ...(candidate.mediaPreparationError === null || typeof candidate.mediaPreparationError === "string"
+          ? { mediaPreparationError: candidate.mediaPreparationError } : {}),
         ...previewProperties(candidate),
       };
     },
@@ -173,30 +200,158 @@ function mediaTypeDefinition(type: MediaKind): CustomNodeDefinition<MediaProps> 
   };
 }
 
-function previewTextureRenderer(type: MediaKind): CustomNodeDefinition<MediaProps, { lease?: CustomTextureLease }>["renderer"] {
+type PreviewTextureState = {
+  surface?: CustomDisplayObject;
+  content: CustomDisplayObject;
+  image: CustomDisplayObject;
+  clip?: CustomDisplayObject;
+  lease?: CustomTextureLease;
+  ref?: AssetRef;
+  naturalWidth?: number;
+  naturalHeight?: number;
+};
+
+function previewTextureRenderer(type: MediaKind): CustomNodeDefinition<MediaProps, PreviewTextureState>["renderer"] {
   return {
     async create(node, context) {
       const ref = node.assetRefs?.preview;
-      const lease = ref ? await context.assets.acquireTexture(ref, { kind: type }) : undefined;
-      if (context.signal.aborted) throw new DOMException("Aborted", "AbortError");
-      const displayObject = await context.display.createImage?.(ref, node) ?? context.display.createContainer();
-      if (lease?.texture !== undefined) displayObject.texture = lease.texture;
-      displayObject.mediaKind = type;
-      return { displayObject, state: { lease } };
+      let displayObject: CustomDisplayObject | undefined;
+      let lease: CustomTextureLease | undefined;
+      try {
+        lease = ref ? await context.assets.acquireTexture(ref, { kind: type }) : undefined;
+        if (context.signal.aborted) throw new DOMException("Aborted", "AbortError");
+
+        displayObject = context.display.createContainer();
+        const surface = context.display.createRect?.(node.width, node.height, 0x000000);
+        if (surface) {
+          surface.alpha = 0;
+          displayObject.addChild?.(surface);
+        }
+        const content = context.display.createContainer();
+        const image = await context.display.createImage?.(ref, node) ?? context.display.createContainer();
+        if (lease?.texture !== undefined) {
+          image.texture = lease.texture;
+          // Preserve the root texture hint used by callers that inspect media views.
+          displayObject.texture = lease.texture;
+        }
+        content.addChild?.(image);
+        displayObject.addChild?.(content);
+        displayObject.mediaKind = type;
+
+        const dimensions = previewTextureDimensions(image, lease);
+        const clip = context.display.createRect?.(1, 1, 0xffffff);
+        if (clip) content.addChild?.(clip);
+        const state: PreviewTextureState = {
+          surface,
+          content,
+          image,
+          clip,
+          lease,
+          ref,
+          naturalWidth: dimensions.width,
+          naturalHeight: dimensions.height,
+        };
+        applyPreviewTextureGeometry(displayObject, state, node);
+        return { displayObject, state };
+      } catch (error) {
+        try { displayObject?.destroy?.({ children: true }); } catch { /* best-effort cleanup */ }
+        try { lease?.release?.(); } catch { /* preserve the create error */ }
+        throw error;
+      }
     },
     update(view, node) {
-      view.displayObject.x = node.x;
-      view.displayObject.y = node.y;
-      view.displayObject.rotation = node.rotation;
-      view.displayObject.zIndex = node.zIndex;
-      view.displayObject.width = node.width;
-      view.displayObject.height = node.height;
+      applyPreviewTextureGeometry(view.displayObject, view.state, node);
     },
     destroy(view) {
-      view.state.lease?.release?.();
-      view.displayObject.destroy?.({ children: true });
+      try { view.displayObject.destroy?.({ children: true }); } finally { view.state.lease?.release?.(); }
     },
   };
+}
+
+function applyPreviewTextureGeometry(
+  displayObject: CustomDisplayObject,
+  state: PreviewTextureState,
+  node: Readonly<BoardNode<MediaProps>>,
+): void {
+  displayObject.x = node.x;
+  displayObject.y = node.y;
+  displayObject.rotation = node.rotation;
+  displayObject.zIndex = node.zIndex;
+
+  const boxWidth = positivePreviewDimension(node.width);
+  const boxHeight = positivePreviewDimension(node.height);
+  const fit = previewTextureFit(node);
+  const declared = previewIntrinsicDimensions(node.props);
+  const naturalWidth = positivePreviewDimension(declared?.width ?? state.naturalWidth);
+  const naturalHeight = positivePreviewDimension(declared?.height ?? state.naturalHeight);
+  const layout = previewTextureLayout(fit, boxWidth, boxHeight, naturalWidth, naturalHeight);
+
+  if (state.surface) {
+    state.surface.x = 0;
+    state.surface.y = 0;
+    state.surface.width = boxWidth;
+    state.surface.height = boxHeight;
+  }
+  state.image.visible = Boolean(state.ref) && boxWidth > 0 && boxHeight > 0;
+  state.image.x = layout.x;
+  state.image.y = layout.y;
+  state.image.width = layout.width;
+  state.image.height = layout.height;
+
+  if (state.clip) {
+    state.clip.width = boxWidth;
+    state.clip.height = boxHeight;
+    state.clip.visible = layout.clip;
+    state.content.mask = layout.clip ? state.clip : undefined;
+  }
+}
+
+function previewTextureFit(node: Readonly<BoardNode<MediaProps>>): ContentFit {
+  const value = node.fit ?? node.props.fit ?? node.props.mediaFit;
+  return value === "cover" || value === "stretch" ? value : "contain";
+}
+
+function previewIntrinsicDimensions(props: Partial<MediaProps>): { width: number; height: number } | undefined {
+  const width = positivePreviewDimension(props.intrinsicWidth);
+  const height = positivePreviewDimension(props.intrinsicHeight);
+  return width > 0 && height > 0 ? { width, height } : undefined;
+}
+
+function previewTextureLayout(
+  fit: ContentFit,
+  boxWidth: number,
+  boxHeight: number,
+  naturalWidth: number,
+  naturalHeight: number,
+): { x: number; y: number; width: number; height: number; clip: boolean } {
+  if (boxWidth <= 0 || boxHeight <= 0) return { x: 0, y: 0, width: 0, height: 0, clip: false };
+  if (fit === "stretch" || naturalWidth <= 0 || naturalHeight <= 0) {
+    return { x: 0, y: 0, width: boxWidth, height: boxHeight, clip: false };
+  }
+  const rect = fitMediaRect(
+    { width: boxWidth, height: boxHeight },
+    { width: naturalWidth, height: naturalHeight },
+    fit,
+  );
+  return { ...rect, clip: fit === "cover" };
+}
+
+function previewTextureDimensions(
+  image: CustomDisplayObject,
+  lease?: CustomTextureLease,
+): { width?: number; height?: number } {
+  const texture = image.texture as { width?: unknown; height?: unknown; source?: { width?: unknown; height?: unknown } } | undefined;
+  const width = [lease?.width, texture?.width, texture?.source?.width, image.width].find(isPositivePreviewNumber);
+  const height = [lease?.height, texture?.height, texture?.source?.height, image.height].find(isPositivePreviewNumber);
+  return typeof width === "number" && typeof height === "number" ? { width, height } : {};
+}
+
+function positivePreviewDimension(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function isPositivePreviewNumber(value: unknown): value is number {
+  return positivePreviewDimension(value) > 0;
 }
 
 function seededDocument() {
@@ -297,7 +452,7 @@ async function main(): Promise<void> {
     },
   });
   wireMediaPlayerViewer();
-  wireSelectionActions(board, resyncMediaBadges);
+  wireSelectionActions(board);
   wireClipboardAndContextMenu(board, resyncMediaBadges);
   wireToolbar(board, resyncMediaBadges);
   wireMediaUpload(board, resyncMediaBadges);
@@ -596,7 +751,7 @@ function wireClipboardAndContextMenu(board: PixiBoard, resyncMediaBadges: () => 
             { label: "下载原始文件", icon: "download", action: () => downloadSelectedMedia(board) },
             { label: "打开原始文件", icon: "open", action: () => openSelectedMedia(board) },
             ...(isDocumentNode(selected) ? [] : [{ label: "恢复导入时的宽高比", icon: "frame" as const, action: () => restoreSelectedMediaRatio(board) }]),
-            { label: isPreviewNode(selected) ? "重置预览" : "刷新预览", icon: "refresh", action: () => refreshSelectedMediaPreview(board, resyncMediaBadges) },
+            { label: isPreviewNode(selected) ? "重置预览" : "刷新预览", icon: "refresh", action: () => refreshSelectedMediaPreview(board) },
           ]
         : []),
       { label: "适配全部", icon: "fit", action: () => board.viewport.fitBounds(padBounds(computeContentBounds(board), 80)) },
@@ -1161,7 +1316,24 @@ function restoreMediaAspectRatio(board: PixiBoard, node: BoardNode<MediaProps>):
   }), { origin: "ui" });
 }
 
-function refreshSelectedMediaPreview(board: PixiBoard, resyncMediaBadges: () => void): void {
+async function requestMediaRepair(node: BoardNode<MediaProps>): Promise<void> {
+  const assetId = selectedMediaAssetId(node);
+  const boardId = activeProject?.id;
+  if (!assetId || !boardId || !isMediaKind(node.type)) return;
+  showToast("正在刷新预览...");
+  try {
+    const transportFn = typeof transport === "function" ? transport : undefined;
+    if (!transportFn) throw new Error("媒体服务不可用");
+    await transportFn(`/boards/${encodeURIComponent(boardId)}/assets/${encodeURIComponent(assetId)}/media`, {
+      method: "POST", json: {},
+    });
+    showToast("已开始后台刷新", "success");
+  } catch (error) {
+    showToast(`刷新失败：${error instanceof Error ? error.message : String(error)}`, "error");
+  }
+}
+
+function refreshSelectedMediaPreview(board: PixiBoard): void {
   const node = selectedMediaNode(board);
   const assetId = selectedMediaAssetId(node);
   if (!node || !assetId || !isMediaKind(node.type)) return;
@@ -1171,29 +1343,7 @@ function refreshSelectedMediaPreview(board: PixiBoard, resyncMediaBadges: () => 
     showToast("正在重置预览...");
     return;
   }
-  showToast("正在刷新预览...");
-  void mediaLibrary.refreshPreview(assetId, node.type).then((changed) => {
-    if (!changed) {
-      showToast("这个资源没有可刷新的派生预览", "error");
-      return;
-    }
-    for (const variant of ["preview", "waveform"] as const) textureCache.delete(`${assetId}:${variant}`);
-    const current = board.nodes.get<MediaProps>(node.id);
-    if (current) {
-      const refreshVariant: AssetVariant = current.type === "audio" ? "waveform" : "preview";
-      const assetRefs = Object.fromEntries(
-        Object.entries(current.assetRefs ?? {}).filter(([key]) => !key.startsWith("_refreshPreview")),
-      );
-      board.nodes.update<MediaProps>(node.id, {
-        assetRefs: {
-          ...assetRefs,
-          [`_refreshPreview${Date.now()}`]: { assetId, variant: refreshVariant },
-        },
-      });
-    }
-    resyncMediaBadges();
-    showToast("预览已刷新", "success");
-  }).catch((error) => showToast(`刷新失败：${error instanceof Error ? error.message : String(error)}`, "error"));
+  void requestMediaRepair(node);
 }
 
 function selectedMediaAssetId(node: BoardNode<MediaProps> | undefined): string | undefined {
@@ -1441,10 +1591,11 @@ async function importFiles(
  * picked over the original automatically) and otherwise its original bytes.
  */
 function mediaAssetRefs(media: MediaImport): Record<string, AssetRef> {
-  if (media.kind === "video") return { poster: { assetId: media.assetId, variant: "preview" } };
-  if (media.kind === "audio") return { waveform: { assetId: media.assetId, variant: "waveform" } };
+  const primary: AssetRef = { assetId: media.assetId, variant: "original" };
+  if (media.kind === "video") return { primary, ...(media.hasPreview ? { poster: { assetId: media.assetId, variant: "preview" } } : {}) };
+  if (media.kind === "audio") return { primary, ...(media.hasPreview ? { waveform: { assetId: media.assetId, variant: "waveform" } } : {}) };
   return {
-    primary: { assetId: media.assetId, variant: "original" },
+    primary,
     ...(media.hasPreview ? { preview: { assetId: media.assetId, variant: "preview" } } : {}),
   };
 }
@@ -1460,13 +1611,19 @@ function freeSpaceAnchor(board: PixiBoard): { x: number; y: number } {
 }
 
 function mediaTag(node: Readonly<BoardNode>): string {
-  const previewLabel = previewTypeLabel(node, KIND_ICON[node.type as MediaKind] ?? node.type.toUpperCase());
+  const typeLabel = KIND_ICON[node.type as MediaKind] ?? node.type.toUpperCase();
+  const previewLabel = previewTypeLabel(node, typeLabel);
   if (previewLabel) return previewLabel;
+  const props = node.props as Partial<MediaProps>;
+  if (node.type === "image" || node.type === "video" || node.type === "audio") {
+    if (props.mediaPreparationStatus === "pending" || props.mediaPreparationStatus === "processing") return `${typeLabel}:处理中`;
+    if (props.mediaPreparationStatus === "error" || props.mediaPreparationStatus === "failed") return `${typeLabel}:准备失败`;
+  }
   if (node.type === "video" || node.type === "audio") {
-    const duration = (node.props as Partial<MediaProps>).duration;
+    const duration = props.duration;
     if (typeof duration === "number" && Number.isFinite(duration) && duration > 0) return formatTime(duration);
   }
-  return KIND_ICON[node.type as MediaKind] ?? node.type.toUpperCase();
+  return typeLabel;
 }
 
 const KIND_ICON: Record<MediaKind, string> = { image: "IMG", video: "VID", audio: "AUD", model: "3D", html: "HTML", markdown: "MD", "text-file": "TXT", file: "FILE" };
@@ -1556,29 +1713,16 @@ function selectedMediaNode(board: PixiBoard): BoardNode<MediaProps> | undefined 
   return node && isMediaKind(node.type) ? node : undefined;
 }
 
-function wireSelectionActions(board: PixiBoard, resyncMediaBadges: () => void): void {
+function wireSelectionActions(board: PixiBoard): void {
   let activeNodeId: string | undefined;
   let activePlayback: MediaPlaybackController | undefined;
   let activeInlineElement: HTMLMediaElement | undefined;
-  let activeAssetId: string | undefined;
   let scrubbing = false;
   let rafHandle: number | undefined;
   let lastPersistedPlaybackTime = 0;
 
   selectionActions.addEventListener("pointerdown", (event) => event.stopPropagation());
   selectionActions.addEventListener("wheel", forwardWheelToBoard, { passive: false });
-
-  const videoFrameRefreshPatch = (node: BoardNode<MediaProps>, assetId: string): Pick<BoardNode<MediaProps>, "assetRefs"> => {
-    const assetRefs = Object.fromEntries(
-      Object.entries(node.assetRefs ?? {}).filter(([key]) => !key.startsWith("_refreshPreview")),
-    );
-    return {
-      assetRefs: {
-        ...assetRefs,
-        [`_refreshPreview${Date.now()}`]: { assetId, variant: "preview" },
-      },
-    };
-  };
 
   const persistPlaybackTime = (nodeId: string | undefined, seconds: number | undefined, force = false): void => {
     if (!nodeId || seconds === undefined) return;
@@ -1598,34 +1742,16 @@ function wireSelectionActions(board: PixiBoard, resyncMediaBadges: () => void): 
     board.nodes.update<MediaProps>(node.id, { props });
   };
 
-  const refreshVideoFramePreview = (nodeId: string | undefined, assetId: string | undefined, element: HTMLMediaElement | undefined): void => {
-    if (!nodeId || !assetId || !(element instanceof HTMLVideoElement)) return;
-    const node = board.nodes.get<MediaProps>(nodeId);
-    if (!node || node.type !== "video") return;
-    void mediaLibrary.updateVideoPreviewFromElement(assetId, element).then((changed) => {
-      if (!changed) return;
-      textureCache.delete(`${assetId}:preview`);
-      const current = board.nodes.get<MediaProps>(nodeId);
-      if (!current || current.type !== "video") return;
-      board.nodes.update<MediaProps>(current.id, videoFrameRefreshPatch(current, assetId));
-      resyncMediaBadges();
-    }).catch(() => undefined);
-  };
-
   const stopPlayback = (keepScrubbing = false) => {
     if (!keepScrubbing) scrubbing = false;
     const nodeId = activeNodeId;
-    const assetId = activeAssetId;
-    const element = activeInlineElement;
     const playback = activePlayback;
     const seconds = playback?.controls.currentTime();
     // Clear identity before updates emit change events and re-enter panel sync.
     activePlayback = undefined;
     activeInlineElement = undefined;
     activeNodeId = undefined;
-    activeAssetId = undefined;
     persistPlaybackTime(nodeId, seconds, true);
-    if (element && !element.seeking && element.readyState >= 2) refreshVideoFramePreview(nodeId, assetId, element);
     if (rafHandle !== undefined) {
       cancelAnimationFrame(rafHandle);
       rafHandle = undefined;
@@ -1709,20 +1835,19 @@ function wireSelectionActions(board: PixiBoard, resyncMediaBadges: () => void): 
           if (activeInlineElement !== element || activeNodeId !== node.id) return;
           persistPlaybackTime(node.id, playback.controls.currentTime());
         };
-        const refreshCurrentFrame = () => {
+        const revealCurrentFrame = () => {
           if (activeInlineElement !== element || activeNodeId !== node.id || element.seeking || element.readyState < 2) return;
           if (Math.abs(element.currentTime - playback.controls.currentTime()) > 0.05) return;
           element.style.visibility = "";
-          refreshVideoFramePreview(node.id, assetId, element);
         };
-        element.addEventListener("loadeddata", refreshCurrentFrame);
+        element.addEventListener("loadeddata", revealCurrentFrame);
         element.addEventListener("pause", () => {
           persistCurrentTime();
-          refreshCurrentFrame();
+          revealCurrentFrame();
         });
         element.addEventListener("seeked", () => {
           persistCurrentTime();
-          refreshCurrentFrame();
+          revealCurrentFrame();
         });
         element.addEventListener("ended", () => {
           if (activeInlineElement === element) resetPlaybackTime(node.id);
@@ -1745,7 +1870,6 @@ function wireSelectionActions(board: PixiBoard, resyncMediaBadges: () => void): 
     playback.controls.subscribe(syncPlayback);
     activePlayback = playback;
     activeNodeId = node.id;
-    activeAssetId = assetId;
     lastPersistedPlaybackTime = node.props.playbackTime ?? 0;
     startPlaybackTick();
     return playback;
@@ -1814,31 +1938,7 @@ function wireSelectionActions(board: PixiBoard, resyncMediaBadges: () => void): 
         showToast("正在重置预览...");
         return;
       }
-      const assetId = node.assetRefs?.primary?.assetId ?? node.assetRefs?.preview?.assetId ?? node.assetRefs?.poster?.assetId ?? node.assetRefs?.waveform?.assetId;
-      if (!assetId || !isMediaKind(node.type)) return;
-      showToast("正在刷新预览...");
-      void mediaLibrary.refreshPreview(assetId, node.type).then((changed) => {
-        if (!changed) {
-          showToast("这个资源没有可刷新的派生预览", "error");
-          return;
-        }
-        for (const variant of ["preview", "waveform"] as const) textureCache.delete(`${assetId}:${variant}`);
-        const current = board.nodes.get<MediaProps>(node.id);
-        if (current) {
-          const refreshVariant: AssetVariant = current.type === "audio" ? "waveform" : "preview";
-          const assetRefs = Object.fromEntries(
-            Object.entries(current.assetRefs ?? {}).filter(([key]) => !key.startsWith("_refreshPreview")),
-          );
-          board.nodes.update<MediaProps>(node.id, {
-            assetRefs: {
-              ...assetRefs,
-              [`_refreshPreview${Date.now()}`]: { assetId, variant: refreshVariant },
-            },
-          });
-        }
-        resyncMediaBadges();
-        showToast("预览已刷新", "success");
-      }).catch((error) => showToast(`刷新失败：${error instanceof Error ? error.message : String(error)}`, "error"));
+      void requestMediaRepair(node);
     } else if (action === "delete") {
       stopPlayback();
       deleteSelection(board);
@@ -2090,7 +2190,30 @@ function collectDocumentAssetIds(document: BoardDocument, output: Set<string>): 
   for (const asset of document.assets ?? []) output.add(asset.id);
 }
 
-function showToast(_message: string, _tone: "info" | "error" | "success" = "info"): void {
+function showToast(message: string, tone: "info" | "error" | "success" = "info"): void {
+  let container = document.querySelector<HTMLElement>("#dsh-toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "dsh-toast-container";
+    container.setAttribute("aria-live", "polite");
+    Object.assign(container.style, {
+      position: "fixed", right: "20px", bottom: "20px", zIndex: "10000",
+      display: "flex", flexDirection: "column", gap: "8px", maxWidth: "min(420px, calc(100vw - 40px))",
+      pointerEvents: "none",
+    });
+    document.body.append(container);
+  }
+  const toast = document.createElement("div");
+  toast.textContent = message;
+  toast.setAttribute("role", tone === "error" ? "alert" : "status");
+  Object.assign(toast.style, {
+    padding: "10px 14px", borderRadius: "8px", color: "#fff", fontSize: "13px",
+    lineHeight: "1.5", overflowWrap: "anywhere", boxShadow: "0 4px 16px rgba(0,0,0,.2)",
+    background: tone === "error" ? "#b42318" : tone === "success" ? "#16734a" : "#303846",
+  });
+  container.append(toast);
+  while (container.children.length > 4) container.firstElementChild?.remove();
+  window.setTimeout(() => { toast.remove(); if (!container?.children.length) container?.remove(); }, tone === "error" ? 7000 : 3500);
 }
 
 function exportDocument(board: PixiBoard): void {
