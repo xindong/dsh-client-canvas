@@ -10,7 +10,7 @@ CORE_DIR="${DSH_CANVAS_CORE_DIR:-$(dirname "$ROOT_DIR")/dsh-canvas}"
 cp "$ROOT_DIR/src/client.js" "$ROOT_DIR/lib/client.js"
 
 sync_package() {
-  local source="$1" name="$2" target="$PROFILE_DIR/node_modules/@xindong/$2"
+  local source="$1" name="$2" target="$PROFILE_DIR/node_modules/$2"
   if [[ ! -f "$source/package.json" ]]; then
     echo "Missing source package: $source" >&2
     exit 1
@@ -36,7 +36,7 @@ sync_package() {
   printf '  %-18s %s\n' "$name" "$target"
 }
 
-sync_package "$CORE_DIR" dsh-canvas
-sync_package "$ROOT_DIR" dsh-client-canvas
+sync_package "$CORE_DIR" '@xindong/dsh-canvas'
+sync_package "$ROOT_DIR" '@miragari/dsh-client-canvas'
 printf 'Synced source → runtime (no build/typecheck).\n'
 printf 'Start: bash %s/scripts/start-local.sh\n' "$ROOT_DIR"
