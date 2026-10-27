@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Import exact upstream sources and already-published runtime dependencies. No build.
+// Import exact upstream sources, preserving recorded host overrides. No build.
 import { execFileSync } from 'node:child_process'
 import { cp, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
@@ -10,13 +10,53 @@ import { adaptSource } from '../lib/site-server.js'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const manifestPath = join(root, 'lib/site/upstream.json')
-const previous = await readFile(manifestPath, 'utf8').then(JSON.parse).catch(() => null)
+const target = join(root, 'lib/site')
+const snapshotRoot = join(target, 'upstream/apps/site')
+const sourcePaths = ['index.html', 'src/main.ts', 'src/styles.css', 'src/media.ts', 'src/preview.ts']
+async function hashFile(path) {
+  return createHash('sha256').update(await readFile(path)).digest('hex')
+}
+
+async function hashSources(base) {
+  return Object.fromEntries(await Promise.all(sourcePaths.map(async path => [path, await hashFile(join(base, path))])))
+}
+
+function requireSourceHashes(value, label, complete) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${label} must be a path-to-SHA-256 object`)
+  const paths = Object.keys(value)
+  const unknown = paths.filter(path => !sourcePaths.includes(path))
+  const required = complete ? sourcePaths : paths
+  const invalid = required.filter(path => !/^[a-f0-9]{64}$/.test(value[path] ?? ''))
+  if (unknown.length) throw new Error(`${label} has unsupported paths: ${unknown.join(', ')}`)
+  if (invalid.length) throw new Error(`${label} has missing or invalid hashes: ${invalid.join(', ')}`)
+  return value
+}
+
+const manifestText = await readFile(manifestPath, 'utf8').catch(error => {
+  if (error.code === 'ENOENT') throw new Error('Missing lib/site/upstream.json; refusing to replace the snapshot without a recorded upstream baseline')
+  throw error
+})
+let previous
+try {
+  previous = JSON.parse(manifestText)
+} catch {
+  throw new Error('Invalid lib/site/upstream.json; refusing to replace the snapshot without a recorded upstream baseline')
+}
+if (previous.repository !== 'xindong/pixiboardSDK') throw new Error('lib/site/upstream.json records an unexpected repository')
+const previousSourceHashes = requireSourceHashes(previous.sourceHashes, 'sourceHashes', true)
+const previousLocalSourceHashes = requireSourceHashes(previous.localSourceHashes ?? {}, 'localSourceHashes', false)
+const checkedInSourceHashes = await hashSources(snapshotRoot)
+const expectedSourceHashes = { ...previousSourceHashes, ...previousLocalSourceHashes }
+const unrecordedChanges = sourcePaths.filter(path => checkedInSourceHashes[path] !== expectedSourceHashes[path])
+if (unrecordedChanges.length) {
+  throw new Error(`Current site snapshot has unrecorded changes: ${unrecordedChanges.join(', ')}; record intentional host overrides in localSourceHashes before syncing`)
+}
 const revisionIndex = process.argv.indexOf('--revision')
 if (revisionIndex >= 0 && process.argv.includes('--latest')) throw new Error('Use --revision or --latest, not both')
 const revision = revisionIndex >= 0 ? process.argv[revisionIndex + 1]
   : process.argv.includes('--latest')
     ? JSON.parse(execFileSync('gh', ['api', 'repos/xindong/pixiboardSDK/commits/main'], { encoding: 'utf8' })).sha
-    : previous?.revision || 'aa7fe05afc82f06c151b776ca70a262ebfedaf34'
+    : previous.revision
 if (!/^[a-f0-9]{40}$/.test(revision)) throw new Error('Expected an immutable upstream commit SHA')
 const temp = await mkdtemp(join(tmpdir(), 'dsh-pixiboard-'))
 const staging = join(temp, 'upstream')
@@ -80,6 +120,32 @@ try {
   }
   const site = join(temp, 'site')
   await mkdir(join(site, 'upstream'), { recursive: true })
+  // sourceHashes always describes pristine upstream source. localSourceHashes
+  // names the only files a host may replace, so a sync can validate the
+  // checked-in snapshot and preserve intentional customization without hiding
+  // an unrecorded edit or overwriting an upstream change.
+  const upstreamSourceHashes = await hashSources(join(staging, 'apps/site'))
+  const localSourceHashes = {}
+  const hostOverrides = Object.keys(previousLocalSourceHashes)
+  for (const path of hostOverrides) {
+    if (upstreamSourceHashes[path] !== previousSourceHashes[path]) {
+      throw new Error(`Upstream changed host-overridden source: ${path}; merge the host change into the new upstream revision and update localSourceHashes before syncing`)
+    }
+  }
+  // Apply host overrides before copying the staged tree. Copying first and
+  // patching staging afterwards would quietly ship the pristine upstream files.
+  for (const path of hostOverrides) {
+    await cp(join(snapshotRoot, path), join(staging, 'apps/site', path))
+    localSourceHashes[path] = await hashFile(join(staging, 'apps/site', path))
+  }
+  // A host override is the difference from pristine upstream. Keep the two
+  // hash sets distinct, otherwise a customized file would be mislabeled as
+  // the source baseline and future upstream changes to it would go unnoticed.
+  for (const path of hostOverrides) {
+    if (localSourceHashes[path] === upstreamSourceHashes[path]) {
+      throw new Error(`Host override does not differ from upstream source: ${path}; remove it from localSourceHashes`)
+    }
+  }
   await cp(join(staging, 'apps/site'), join(site, 'upstream/apps/site'), { recursive: true })
   await cp(join(staging, 'LICENSE'), join(site, 'upstream/LICENSE'))
   // The site and renderer versions are from the pinned upstream pnpm lockfile.
@@ -154,7 +220,6 @@ try {
   // SDK site archive classification uses this published browser module via the import map.
   await cp(join(root, 'node_modules/fflate/esm/browser.js'), join(site, 'deps/fflate.mjs'))
   await cp(join(root, 'node_modules/fflate/LICENSE'), join(site, 'deps/fflate.LICENSE'))
-  const target = join(root, 'lib/site')
   const pending = await mkdtemp(join(target, '.upstream-update-'))
   const replaced = []
   try {
@@ -169,7 +234,14 @@ try {
       }
       replaced.push(name)
     }
-    await writeFile(manifestPath, JSON.stringify({ repository: 'xindong/pixiboardSDK', revision, version, dependencies: artifacts, sourceHashes: Object.fromEntries(await Promise.all(['index.html', 'src/main.ts', 'src/styles.css', 'src/media.ts', 'src/preview.ts'].map(async path => [path, createHash('sha256').update(await readFile(join(staging, 'apps/site', path))).digest('hex')]))) }, null, 2) + '\n')
+    await writeFile(manifestPath, JSON.stringify({
+      repository: 'xindong/pixiboardSDK',
+      revision,
+      version,
+      dependencies: artifacts,
+      sourceHashes: upstreamSourceHashes,
+      ...(Object.keys(localSourceHashes).length ? { localSourceHashes } : {}),
+    }, null, 2) + '\n')
   } catch (error) {
     for (const name of replaced.reverse()) {
       await rm(join(target, name), { recursive: true, force: true })
@@ -179,7 +251,8 @@ try {
   } finally {
     await rm(pending, { recursive: true, force: true })
   }
-  console.log(`Imported PixiBoardSDK site at ${revision}; browser SDK is pixiboardjs@${version} from npm.`)
+  const overrides = Object.keys(localSourceHashes)
+  console.log(`Imported PixiBoardSDK site at ${revision}; browser SDK is pixiboardjs@${version} from npm.${overrides.length ? ` Preserved host overrides: ${overrides.join(', ')}.` : ''}`)
 } finally {
   await rm(temp, { recursive: true, force: true })
 }

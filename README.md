@@ -41,7 +41,7 @@
 ## 要求与安装
 
 - Node.js **22.18+**、DSH **>=0.2.0-rc.2 <0.3.0**；不支持低于该基线的 DSH。使用兼容范围避免更新宿主后被精确版本锁定拒绝安装。Core 还使用 DSH 的 `tools` 和 `systemPrompt` 服务，Web 插件使用 Web Server 和 Conversation UI；Office 预览需要 DSH 的 `officeToPdf` 服务。
-- 本包依赖已发布的 `pixiboardjs@0.1.0-alpha.5`。官方 site 源码快照固定在 SDK commit `4a22b10b4d902afc351b710da0002e0ed8117740`；这两个版本需保持匹配。
+- 浏览器 SDK 使用已发布的 `pixiboardjs` 浏览器 bundle，安装后无需另外拉取 PixiBoardSDK。官方 site 源码快照固定在 SDK commit `4a22b10b4d902afc351b710da0002e0ed8117740`。
 
 在已有 DSH 安装中，一条命令安装完整的画布 UI 与 Agent 工具：
 
@@ -98,15 +98,17 @@ Agent 通过 Core 提供的 `canvas_read` 和 `canvas_write` 读写**同一份**
 
 导入 HTML/HTM、Markdown、文本/代码及 JSON/CSV/XML/YAML 等文件时先显示文件卡片，后台生成图片；PDF 默认渲染首页，Office 文件在可用的 `officeToPdf` 服务转换后走 PDF 通道。3D 模型由已发布的 `mivo-model-viewer@0.7.0/node` 预览，支持 GLB/GLTF、FBX、OBJ、STL、PLY、DAE、3MF、3DS、VRML/WRL、STEP/STP 和含模型的 ZIP。未知格式保留文件卡片及原文件，仍可下载或交给 Agent。
 
+视频封面、音频波形及媒体元数据处理需要在运行 DSH 的机器上安装 `ffmpeg` 和 `ffprobe`，并确保它们位于 `PATH` 中；也可分别通过 `FFMPEG_PATH` 和 `FFPROBE_PATH` 指定可执行文件路径。缺少这些工具时，原始媒体仍会保留，但相关预览可能无法生成。
+
 预览任务按类型有界调度，缓存源内容与规格对应的独立预览版本；首次缩略图长边默认 384px，选中时可请求更清晰的 detail（最长边 1024px），显式「重置预览」也请求 detail。后台结果通过 SSE 更新对应卡片，轮询用于断线恢复，不移动视口。拖动、缩放与网页刷新不会重新处理已有预览；失败保留原文件及已有图片，可从右键菜单重试。HTML 布局视口与画布节点尺寸分离，重置预览会保留布局宽度并按节点比例调整截图高度；PDF/Office 默认首页，长文档只显示有界的开头区域。
 
-HTML 相对资源从同画布已导入资产的文件名或相对路径解析；单独导入 HTML 时缺失的资源不会自动补齐，补充资源后可刷新预览。HTML 文件夹/资源包 ZIP 的递归导入尚未接入，模型 ZIP 则单独识别。Office 排版受转换引擎和字体影响。插件依赖随安装提供；首次需要浏览器渲染时若缺少 Chromium，会自动安装（最多等待 5 分钟），安装失败可在插件目录运行 `node scripts/setup-preview-runtime.mjs` 手动准备后重试。预览性能与执行通道详见 [预览说明](docs/preview-performance.md)。
+HTML/Markdown 相对资源按包内相对路径解析。通过 Agent 的 `asset_source` 导入时，本地项目同时传 `root_path` 和 `relative_path` 会递归导入文档及 CSS 引用的同包附件；URL 导入会抓取同源引用，并受开放 URL、单文件和资源包大小及文件数限制。从浏览器单独导入 HTML 时，浏览器无法读取同目录文件，预览只能使用该画布中已有且路径匹配的资源；补齐资源后可刷新预览。HTML 文件夹/资源包 ZIP 的递归导入尚未接入，模型 ZIP 则单独识别。Office 排版受转换引擎和字体影响。插件依赖随安装提供；首次需要浏览器渲染时若缺少 Chromium，会自动安装（最多等待 5 分钟），安装失败可在插件目录运行 `node scripts/setup-preview-runtime.mjs` 手动准备后重试。预览性能与执行通道详见 [预览说明](docs/preview-performance.md)。
 
 ## 架构与安全边界
 
 - `@xindong/dsh-canvas` 负责文档、资源、revision 和 Agent 工具；本插件负责 DSH `conversation.view` Tab、HTTP 桥接、预览任务与官方 site 的 DSH 适配。上游 site 保留画布交互和通用预览 UI，不另造画布实现。
 - site 在同源 iframe 中运行，以隔离 CSS、DOM 和快捷键；**iframe 不是不可信代码的安全边界**。HTTP project/media adapter 将 site 的存储接回 Core，而不是使用浏览器 IndexedDB/OPFS 保存第二份画布。
-- site 源码快照位于 `lib/site/upstream/`，Pixi 和图标浏览器模块位于 `lib/site/deps/`；Three.js 由锁定版本的 npm 包在本机提供，锁定信息见 `lib/site/upstream.json`。`lib/site-server.js` 在请求时对上游 TypeScript 做 Node 类型擦除并提供 ESM；SDK 浏览器运行时的 `pixiboardjs/browser`、`@pixi-board/core`、`@pixi-board/renderer-pixi` 和 `@pixi-board/adapter-browser` 全部通过 import map 指向**同一个**已发布 npm 浏览器 bundle `sdk/browser.js`，不加载本机 SDK 源码或另外编译一份 SDK。
+- site 源码快照位于 `lib/site/upstream/`，Pixi 和图标浏览器模块位于 `lib/site/deps/`；Three.js 由锁定版本的 npm 包在本机提供，锁定信息见 `lib/site/upstream.json`。`lib/site-server.js` 在请求时对上游 TypeScript 做 Node 类型擦除并提供 ESM；SDK 浏览器运行时的 `pixiboardjs/browser`、`@pixi-board/core`、`@pixi-board/capabilities`、`@pixi-board/renderer-pixi` 和 `@pixi-board/adapter-browser` 全部通过 import map 指向同一个已发布的 npm 浏览器 bundle `sdk/browser.js`，不加载本机 SDK 源码或另外编译一份 SDK。
 - 预览请求在本地服务端处理。HTML 渲染页不带 DSH 登录 Cookie，禁止访问 `file:` 和内网/回环 API；“打开原始文件”使用带 CSP 沙箱的资产响应，而不是同源 Blob 页面。不要把外部文件内容当作可信指令。URL 导入仅允许公网 HTTP(S)，不跟随重定向。保护完整登录链接、会话凭据和画布数据，报告问题时先去除敏感信息。
 
 ## 上游更新与开发
@@ -123,8 +125,8 @@ node scripts/update-upstream.mjs
 node scripts/update-upstream.mjs --revision <40-character-commit-sha>
 ```
 
-也可用 `--latest` 明确跟进 SDK `main`，但其包版本仍须与依赖一致。脚本通过 `gh` 获取不可变源码快照，按上游 lockfile 获取并校验浏览器依赖；若 site 接入点或公开预览契约变化则中止，不应手工修改 `lib/site/upstream/`。更新后检查 `lib/site/upstream.json` 的 revision/version、适配层兼容性与许可证，再同步运行副本并重启 DSH。
+也可用 `--latest` 明确跟进 SDK `main`，但其包版本仍须与依赖一致。脚本通过 `gh` 获取不可变源码快照，按上游 lockfile 获取并校验浏览器依赖；若 site 接入点或公开预览契约变化则中止。`lib/site/upstream.json` 的 `sourceHashes` 记录上游原文基线，`localSourceHashes` 只登记宿主有意替换的文件及其当前 hash；sync 会保留这些文件，并拒绝未登记改动或上游同文件冲突。需要修改宿主定制时，必须同时更新 `localSourceHashes`，否则 sync 会明确报错而不是静默覆盖。更新后检查 revision/version、适配层兼容性与许可证，再同步运行副本并重启 DSH。
 
-本地开发可把 Core 与 Web 仓库放在同一父目录，将两份源码链接到 DSH 的 `web` profile，然后从 Web 仓库运行 `pnpm sync:runtime`（或 `bash scripts/sync-runtime.sh`）。开发 profile 的 `dsh.profile.bundles` 只选择 Web bundle，不能再选 Core bundle。`DSH_CANVAS_CORE_DIR` 可指定 Core 仓库，`DSH_WEB_PROFILE_DIR` 可指定 profile；修改服务端代码后重启 DSH，修改浏览器代码后刷新页面。`scripts/start-local.sh` 是仓库开发辅助入口，可同步两个插件并使用独立的 DSH 运行时；普通用户不需要它。
+本地开发可把 Core 与 Web 仓库放在同一父目录，将 Core 与 Web 源码链接到 DSH 的 `web` profile，然后从 Web 仓库运行 `pnpm sync:runtime`（或 `bash scripts/sync-runtime.sh`）。开发 profile 的 `dsh.profile.bundles` 只选择 Web bundle，不能再选 Core bundle。`DSH_CANVAS_CORE_DIR` 可指定 Core 仓库，`DSH_WEB_PROFILE_DIR` 可指定 profile；修改服务端代码后重启 DSH，修改浏览器代码后刷新页面。`scripts/start-local.sh` 是仓库开发辅助入口，可同步两个插件并使用独立的 DSH 运行时；普通用户不需要它。
 
 问题与贡献请使用 [GitHub Issues](https://github.com/xindong/dsh-client-canvas/issues)，提供版本、复现步骤与脱敏日志。许可证见 [LICENSE](LICENSE)；第三方依赖保留各自许可证。

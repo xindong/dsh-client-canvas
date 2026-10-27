@@ -22,5 +22,9 @@
     "src/styles.css": "f766a383db3d8d8aded56a66f4c91058b947a9721e22e4b38e85ab48e8d2fc21",
     "src/media.ts": "ab3397cdc10893dba5e50fa3aa6ab58aad36a6204a651d84c56d65031211137c",
     "src/preview.ts": "067e88fe11fab675b9aaeec4dbc0cc27c3a54c219d9ec0f6f2c8a2b243d3a430"
+  },
+  "localSourceHashes": {
+    "src/main.ts": "35918569842a87ec39daba9f132e068761a2af4bd5fb50c6c5de2f135daef859",
+    "src/media.ts": "3e5ce063958ca84257b7ff3fb396ed1e420c98532e40cf741ddb39721ccc87ec"
   }
 }
