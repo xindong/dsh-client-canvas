@@ -60,7 +60,7 @@
   },
   "dependencies": {
     "@napi-rs/canvas": "1.0.10",
-    "@xindong/dsh-canvas": "github:xindong/dsh-canvas#60676fa3e85cd9d9fe44dd7197ed67681ec95613",
+    "@xindong/dsh-canvas": "github:xindong/dsh-canvas#a26d974a325ebd729ce7c8a51797d73febb38560",
     "es-module-lexer": "3.0.4",
     "fflate": "0.8.3",
     "markdown-it": "15.0.2",
