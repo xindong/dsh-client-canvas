@@ -69,6 +69,11 @@ window.__ModuleLoader__.load({
         setLoadState('loading');
         if (frame.current) frame.current.contentWindow.location.reload();
       }
+      React.useEffect(function() {
+        if (loadState !== 'loading') return;
+        var timer = setTimeout(function() { setLoadState('error'); }, 85000);
+        return function() { clearTimeout(timer); };
+      }, [loadState]);
       React.useLayoutEffect(function() {
         closeAgent();
         var child = frame.current && frame.current.contentWindow;

@@ -1,6 +1,6 @@
 {
   "name": "@miragari/dsh-client-canvas",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "An AI-native multimodal canvas for DSH: preview images, video, audio, 3D models, PDFs, documents, and code; connect ideas and collaborate with agents in a persistent local workspace.",
   "type": "module",
   "main": "./lib/index.js",
@@ -60,7 +60,7 @@
   },
   "dependencies": {
     "@napi-rs/canvas": "1.0.10",
-    "@xindong/dsh-canvas": "github:xindong/dsh-canvas#806008806d781c0762182d8168861d893c85653d",
+    "@xindong/dsh-canvas": "github:xindong/dsh-canvas#a26d974a325ebd729ce7c8a51797d73febb38560",
     "es-module-lexer": "3.0.4",
     "fflate": "0.8.3",
     "markdown-it": "15.0.2",
